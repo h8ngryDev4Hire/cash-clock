@@ -1,39 +1,56 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+import { Tabs } from "expo-router";
+import { useColorScheme } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { AppProvider } from "../context/AppContext";
+import "../global.css"
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
+  const isDark = colorScheme === "dark";
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <AppProvider>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: isDark ? "#ffffff" : "#6366F1",
+          tabBarInactiveTintColor: isDark ? "#888888" : "#9CA3AF",
+          tabBarStyle: {
+            backgroundColor: isDark ? "#1F2937" : "#ffffff",
+          },
+          headerStyle: {
+            backgroundColor: isDark ? "#1F2937" : "#ffffff",
+          },
+          headerTintColor: isDark ? "#ffffff" : "#000000",
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Timer",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="timer-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="tasks"
+          options={{
+            title: "Tasks",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="list-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="analytics"
+          options={{
+            title: "Analytics",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="bar-chart-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      </Tabs>
+    </AppProvider>
   );
 }
