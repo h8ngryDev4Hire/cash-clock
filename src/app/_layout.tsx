@@ -4,19 +4,48 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppProvider } from "../context/AppContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import TimerPlayer from "../components/timer/TimerPlayer";
-import { TimerProvider, useTimer } from "../context/TimerContext";
+import { TimerProvider } from "../context/TimerContext";
+import { useTimer } from "../hooks/useTimer";
+import { useStorage } from "../hooks/useStorage";
+import { TaskSchema } from "../types/entities";
 import "../../global.css"
 import { millisecondsToSeconds } from "../services/timer/time";
 
 // Wrapper component for the timer player to access the timer context
 const TimerPlayerContainer = () => {
-  const { isRunning, isPaused, elapsedTime, taskId, pauseTimer, resumeTimer, stopTimer } = useTimer();
+  const { isRunning, isPaused, elapsedTime, taskId, formattedTime, startTimer, pauseTimer, resumeTimer, stopTimer } = useTimer();
+  const { tasks } = useStorage();
+  const router = useRouter();
   
-  // TODO: Get task name from task service using taskId
-  const taskName = taskId ? "Current Task" : "No Active Task";
+  // Get task name from storage using taskId
+  const task = taskId ? tasks.getById(taskId) : undefined;
+  const taskName = task?.name || "Unnamed Task";
   
   // Convert milliseconds to seconds for the TimerPlayer component
   const elapsedTimeInSeconds = millisecondsToSeconds(elapsedTime);
+  
+  // Handle starting a new task
+  const handleStartNewTask = (taskName: string) => {
+    if (taskName.trim()) {
+      // Create a new task and start the timer for it
+      tasks.create({ name: taskName.trim(), isRunning: true, isGrouped: false, isCompleted: false, projectId: null })
+        .then((newTask: TaskSchema) => {
+          startTimer(newTask.itemId);
+        })
+        .catch((error: Error) => {
+          console.error("Failed to create task:", error);
+        });
+    }
+  };
+  
+  // Handle task press to navigate to task details
+  const handleTaskPress = () => {
+    if (taskId) {
+      // Navigate to the task details screen
+      // TODO: Implement task details screen
+      console.log("Navigate to task details:", taskId);
+    }
+  };
   
   return (
     <TimerPlayer 
@@ -27,7 +56,8 @@ const TimerPlayerContainer = () => {
       onPause={pauseTimer}
       onResume={resumeTimer}
       onStop={stopTimer}
-      onStartNewTask={(taskName) => console.log('Start new task:', taskName)}
+      onTaskPress={handleTaskPress}
+      onStartNewTask={handleStartNewTask}
     />
   );
 };
@@ -96,7 +126,10 @@ export default function RootLayout() {
               {navItems.map((item) => (
                 <TouchableOpacity
                   key={item.name}
-                  onPress={() => router.replace(item.path)}
+                  onPress={() => {
+                    console.log('[Navigation] Tab pressed:', item.title);
+                    router.replace(item.path);
+                  }}
                   className="items-center px-3 py-1"
                 >
                   <Ionicons

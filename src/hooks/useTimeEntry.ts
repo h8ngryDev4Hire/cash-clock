@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
+import { TimeEntrySchema } from '../types/entities';
 import { useStorageContext } from '../context/StorageContext';
-import { TimeEntrySchema } from '../types/tasks';
 
 export const useTimeEntry = () => {
   const storage = useStorageContext();

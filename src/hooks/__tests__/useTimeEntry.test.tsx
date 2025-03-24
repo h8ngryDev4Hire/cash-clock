@@ -44,7 +44,7 @@ import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useTimeEntry } from '../useTimeEntry';
 import { useStorageContext } from '../../context/StorageContext';
-import { TimeEntrySchema } from '../../types/tasks';
+import { TimeEntrySchema } from '../../types/entities';
 
 // Mock the StorageContext
 jest.mock('../../context/StorageContext');

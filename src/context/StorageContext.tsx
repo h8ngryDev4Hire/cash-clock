@@ -1,61 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { storageService } from '../services/storage/StorageService';
-import { TaskSchema, TimeEntrySchema, ProjectSchema } from '../types/tasks';
+import { TaskSchema, TimeEntrySchema, ProjectSchema } from '../types/entities';
+import { StorageContextType } from '../types/storage';
 
-// Define the context type
-interface StorageContextType {
-  // Data state
-  tasks: TaskSchema[];
-  timeEntries: TimeEntrySchema[];
-  projects: ProjectSchema[];
-  
-  // Loading and error states
-  isLoading: boolean;
-  error: Error | null;
-  lastUpdated: number | null;
-  
-  // Core storage operations
-  refreshData: () => Promise<void>;
-  
-  // Generic entity operations
-  createEntity: <T extends { itemId: string }>(
-    table: string,
-    data: Omit<T, 'itemId' | 'created' | 'lastUpdated'>,
-    transform?: (dbData: any) => T
-  ) => Promise<T>;
-  
-  updateEntity: <T extends { itemId: string }>(
-    table: string,
-    itemId: string,
-    updates: Partial<Omit<T, 'itemId' | 'created' | 'lastUpdated'>>,
-    transform?: (dbData: any) => T
-  ) => Promise<void>;
-  
-  deleteEntity: (
-    table: string,
-    itemId: string,
-    options?: {
-      cascade?: { table: string; foreignKey: string }[];
-      beforeDelete?: () => Promise<void>;
-      afterDelete?: () => Promise<void>;
-    }
-  ) => Promise<void>;
-  
-  findEntity: <T extends { itemId: string }>(
-    table: string,
-    itemId: string,
-    transform?: (dbData: any) => T
-  ) => Promise<T | null>;
-  
-  findEntities: <T extends { itemId: string }>(
-    table: string,
-    where?: string,
-    params?: any[],
-    transform?: (dbData: any) => T
-  ) => Promise<T[]>;
-}
-
-// Create default context
+// Create the context with a default value
 const StorageContext = createContext<StorageContextType>({} as StorageContextType);
 
 // Provider component

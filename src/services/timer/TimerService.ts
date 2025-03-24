@@ -1,27 +1,7 @@
 import { storageService } from '../storage/StorageService';
 import { generateUUID } from './uuid';
 import { millisecondsToSeconds, calculateElapsedTime } from './time';
-
-/**
- * Timer status enum
- */
-export enum TimerStatus {
-  IDLE = 'idle',
-  RUNNING = 'running',
-  PAUSED = 'paused',
-}
-
-/**
- * Timer data interface
- */
-export interface TimerData {
-  id: string;
-  taskId: string | null;
-  startTime: number | null;
-  elapsedTime: number; // in milliseconds
-  status: TimerStatus;
-  pausedAt: number | null;
-}
+import { TimerStatus, TimerData } from '../../types/timer';
 
 // Table name for timer state in SQLite
 const TIMER_STATE_TABLE = 'settings';

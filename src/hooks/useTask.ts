@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useStorageContext } from '../context/StorageContext';
-import { TaskSchema } from '../types/tasks';
+import { TaskSchema } from '../types/entities';
 
 interface TaskDbData {
   item_id: string;

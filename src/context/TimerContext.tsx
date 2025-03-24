@@ -1,25 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { timerService, TimerStatus, TimerData } from '../services/timer/TimerService';
+import React, { createContext, useEffect, useState, ReactNode } from 'react';
+import { timerService } from '../services/timer/TimerService';
 import { formatTime } from '../services/timer/time';
-
-// Interface for the context value
-interface TimerContextValue {
-  // Timer state
-  isRunning: boolean;
-  isPaused: boolean;
-  elapsedTime: number;
-  formattedTime: string;
-  taskId: string | null;
-  
-  // Timer actions
-  startTimer: (taskId: string) => void;
-  pauseTimer: () => void;
-  resumeTimer: () => void;
-  stopTimer: () => void;
-}
+import { TimerStatus, TimerData, TimerContextValue } from '../types/timer';
 
 // Create the context with a default value
-const TimerContext = createContext<TimerContextValue | undefined>(undefined);
+export const TimerContext = createContext<TimerContextValue | undefined>(undefined);
 
 // TimerProvider props interface
 interface TimerProviderProps {
@@ -80,19 +65,4 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({ children }) => {
       {children}
     </TimerContext.Provider>
   );
-};
-
-/**
- * Custom hook to access the timer context
- * @returns TimerContextValue with timer state and actions
- * @throws Error if used outside a TimerProvider
- */
-export const useTimer = (): TimerContextValue => {
-  const context = useContext(TimerContext);
-  
-  if (context === undefined) {
-    throw new Error('useTimer must be used within a TimerProvider');
-  }
-  
-  return context;
 };

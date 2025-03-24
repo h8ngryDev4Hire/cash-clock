@@ -18,6 +18,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onAddTask }) => {
 
   const handleSubmit = () => {
     if (taskName.trim()) {
+      console.log('[TaskForm] Create task button pressed:', taskName.trim(), 'startTimer:', startTimerAfterCreation);
       onAddTask(taskName.trim(), startTimerAfterCreation);
       setTaskName('');
       // Keep the form open for easy task creation
@@ -25,6 +26,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onAddTask }) => {
   };
   
   const toggleExpanded = () => {
+    console.log('[TaskForm] Toggle form expanded:', !isExpanded);
     setIsExpanded(!isExpanded);
   };
 
@@ -87,7 +89,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ onAddTask }) => {
             
             <Switch
               value={startTimerAfterCreation}
-              onValueChange={setStartTimerAfterCreation}
+              onValueChange={(value) => {
+                console.log('[TaskForm] Toggle start timer switch:', value);
+                setStartTimerAfterCreation(value);
+              }}
               trackColor={{ false: "#ccc", true: "#4F46E5" }}
               thumbColor={startTimerAfterCreation ? "#ffffff" : "#f4f3f4"}
               accessibilityLabel="Start timer after task creation"

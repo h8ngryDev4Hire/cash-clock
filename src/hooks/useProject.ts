@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
+import { ProjectSchema } from '../types/entities';
 import { useStorageContext } from '../context/StorageContext';
-import { ProjectSchema } from '../types/tasks';
 
 export const useProject = () => {
   const storage = useStorageContext();

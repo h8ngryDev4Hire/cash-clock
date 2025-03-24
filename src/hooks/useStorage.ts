@@ -1,17 +1,7 @@
 import { useCallback } from 'react';
 import { useStorageContext } from '../context/StorageContext';
-import { TaskSchema, TimeEntrySchema, ProjectSchema } from '../types/tasks';
-
-type EntityType = 'task' | 'timeEntry' | 'project';
-
-// Generic type for entity operations
-type EntityOperations<T> = {
-  getAll: () => T[];
-  getById: (id: string) => T | undefined;
-  create: (data: any) => Promise<T>;
-  update: (id: string, updates: Partial<any>) => Promise<void>;
-  delete: (id: string) => Promise<void>;
-}
+import { TaskSchema, TimeEntrySchema, ProjectSchema } from '../types/entities';
+import { EntityType, EntityOperations, StorageHookResult } from '../types/storage';
 
 /**
  * useStorage is a custom hook that provides a unified interface for
@@ -19,21 +9,7 @@ type EntityOperations<T> = {
  */
 export function useStorage<T = TaskSchema | TimeEntrySchema | ProjectSchema>(
   entityType?: EntityType
-): {
-  // Common state and operations
-  isLoading: boolean;
-  error: Error | null;
-  lastUpdated: number | null;
-  refreshData: () => Promise<void>;
-  
-  // Generic entity operations (if entityType provided)
-  entity: EntityType extends undefined ? undefined : EntityOperations<T>;
-  
-  // Type-specific operations (always available)
-  tasks: EntityOperations<TaskSchema>;
-  timeEntries: EntityOperations<TimeEntrySchema>;
-  projects: EntityOperations<ProjectSchema>;
-} {
+): StorageHookResult<T> {
   const { 
     tasks, timeEntries, projects,
     isLoading, error, lastUpdated, refreshData,
@@ -46,28 +22,28 @@ export function useStorage<T = TaskSchema | TimeEntrySchema | ProjectSchema>(
   // Task operations
   const taskOperations: EntityOperations<TaskSchema> = {
     getAll: () => tasks,
-    getById: getTaskById,
-    create: createTask,
-    update: updateTask,
-    delete: deleteTask
+    getById: (id) => getTaskById?.(id) || undefined,
+    create: (data) => createTask?.(data) || Promise.reject(new Error('Task creation not available')),
+    update: (id, updates) => updateTask?.(id, updates) || Promise.reject(new Error('Task update not available')),
+    delete: (id) => deleteTask?.(id) || Promise.reject(new Error('Task deletion not available'))
   };
   
   // TimeEntry operations
   const timeEntryOperations: EntityOperations<TimeEntrySchema> = {
     getAll: () => timeEntries,
     getById: (id) => timeEntries.find(entry => entry.itemId === id),
-    create: createTimeEntry,
-    update: updateTimeEntry,
-    delete: deleteTimeEntry
+    create: (data) => createTimeEntry?.(data) || Promise.reject(new Error('TimeEntry creation not available')),
+    update: (id, updates) => updateTimeEntry?.(id, updates) || Promise.reject(new Error('TimeEntry update not available')),
+    delete: (id) => deleteTimeEntry?.(id) || Promise.reject(new Error('TimeEntry deletion not available'))
   };
   
   // Project operations
   const projectOperations: EntityOperations<ProjectSchema> = {
     getAll: () => projects,
     getById: (id) => projects.find(project => project.itemId === id),
-    create: createProject,
-    update: updateProject,
-    delete: deleteProject
+    create: (data) => createProject?.(data) || Promise.reject(new Error('Project creation not available')),
+    update: (id, updates) => updateProject?.(id, updates) || Promise.reject(new Error('Project update not available')),
+    delete: (id) => deleteProject?.(id) || Promise.reject(new Error('Project deletion not available'))
   };
   
   // Helper to get time entries for a task

@@ -1,17 +1,17 @@
 import React from 'react';
-import { SectionList, View, Text, useColorScheme } from 'react-native';
-import { Task } from '../../types/definitions';
+import { FlatList, View, Text, useColorScheme } from 'react-native';
+import { TaskSchema } from '../../types/entities';
 import TaskItem from './TaskItem';
 import { Ionicons } from '@expo/vector-icons';
 
 interface TaskListProps {
-  tasks: Task[];
+  tasks: TaskSchema[];
   onTaskPress?: (taskId: string) => void;
   onPlayPress: (taskId: string) => void;
 }
 
 /**
- * TaskList component displays tasks organized by recency and usage
+ * TaskList component displays tasks in a simple list
  */
 const TaskList: React.FC<TaskListProps> = ({ 
   tasks, 
@@ -21,67 +21,22 @@ const TaskList: React.FC<TaskListProps> = ({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   
-  // Sort tasks by recent and most used (in a real app, this would be more sophisticated)
-  const recentTasks = [...tasks].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 3);
-  const mostUsedTasks = [...tasks].sort((a, b) => b.totalTime - a.totalTime).slice(0, 3);
-  
-  // Create sections for our list
-  const sections = [
-    { 
-      title: 'Recent Tasks', 
-      data: recentTasks,
-      icon: 'time-outline'
-    },
-    { 
-      title: 'Most Used', 
-      data: mostUsedTasks,
-      icon: 'stats-chart-outline'
-    }
-  ];
-  
-  // Empty state component when no tasks exist
-  const EmptyState = () => (
-    <View className="items-center justify-center py-16">
-      <View className="bg-gray-100 dark:bg-gray-700 rounded-full w-16 h-16 items-center justify-center mb-4">
-        <Ionicons 
-          name="list" 
-          size={30} 
-          color={isDark ? "#9CA3AF" : "#6B7280"} 
-        />
-      </View>
-      <Text className={`text-base font-medium text-center ${isDark ? 'text-gray-300' : 'text-gray-500'} mb-2`}>
-        No tasks yet
-      </Text>
-      <Text className={`text-sm text-center ${isDark ? 'text-gray-400' : 'text-gray-500'} max-w-xs`}>
-        Create your first task to begin tracking your productivity
-      </Text>
-    </View>
-  );
-  
-  // Section header component
-  const SectionHeader = ({ title, icon }: { title: string, icon: string }) => (
-    <View className={`flex-row items-center px-2 py-3 mt-2 ${isDark ? '' : ''}`}>
-      <Ionicons 
-        name={icon as any} 
-        size={18} 
-        color={isDark ? "#BFDBFE" : "#3B82F6"} 
-        style={{ marginRight: 8 }}
-      />
-      <Text className={`font-semibold text-base ${isDark ? 'text-blue-200' : 'text-blue-500'}`}>
-        {title}
-      </Text>
-    </View>
-  );
-
-  // If no tasks exist, show the empty state
-  if (tasks.length === 0) {
-    return <EmptyState />;
-  }
+  // Convert TaskSchema to Task for compatibility with TaskItem
+  const convertedTasks = tasks.map(task => ({
+    id: task.itemId,
+    name: task.name,
+    totalTime: task.getTotalTimeSpent ? task.getTotalTimeSpent() : 0,
+    isRunning: task.isRunning,
+    isCompleted: task.isCompleted,
+    projectId: task.projectId || undefined,
+    createdAt: task.created,
+    updatedAt: task.lastUpdated
+  }));
 
   return (
-    <SectionList
+    <FlatList
       className="flex-1"
-      sections={sections}
+      data={convertedTasks}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
         <TaskItem 
@@ -90,10 +45,6 @@ const TaskList: React.FC<TaskListProps> = ({
           onPlayPress={onPlayPress} 
         />
       )}
-      renderSectionHeader={({ section: { title, icon } }) => (
-        <SectionHeader title={title} icon={icon} />
-      )}
-      stickySectionHeadersEnabled={false}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ 
         flexGrow: 1, 

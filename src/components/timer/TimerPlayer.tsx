@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, TextInput, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TimerControls from './TimerControls';
@@ -33,8 +33,10 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
   onStartNewTask = (taskName) => console.log('Start new task:', taskName)
 }) => {
   const [newTaskName, setNewTaskName] = useState('');
+  const [ playerEnabled, setPlayerEnabled ] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+
   
   // Format time as MM:SS
   const formatTime = (seconds: number): string => {
@@ -46,10 +48,19 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
   // Handle starting a new task
   const handleStartNewTask = () => {
     if (newTaskName.trim()) {
+      console.log('[TimerPlayer] Start new task button pressed:', newTaskName.trim());
       onStartNewTask(newTaskName.trim());
       setNewTaskName('');
     }
   };
+
+  useEffect(() => {
+    if (newTaskName.trim()) {
+      setPlayerEnabled(true);
+    } else {
+      setPlayerEnabled(false);
+    }
+  },[newTaskName])
   
   // Don't render if timer is not visible
   if (!isVisible) return null;
@@ -63,7 +74,10 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
             <View className="flex-row items-center justify-between flex-1 px-4">
               <Pressable 
                 className="flex-1" 
-                onPress={onTaskPress}
+                onPress={() => {
+                  console.log('[TimerPlayer] Task name pressed:', taskName);
+                  onTaskPress();
+                }}
                 accessibilityLabel="View task details"
                 accessibilityHint="Navigates to the task details page"
               >
@@ -81,9 +95,18 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
             
             <TimerControls 
               isRunning={isRunning}
-              onPause={onPause}
-              onResume={onResume}
-              onStop={onStop}
+              onPause={() => {
+                console.log('[TimerPlayer] Pause timer pressed for task:', taskName);
+                onPause();
+              }}
+              onResume={() => {
+                console.log('[TimerPlayer] Resume timer pressed for task:', taskName);
+                onResume();
+              }}
+              onStop={() => {
+                console.log('[TimerPlayer] Stop timer pressed for task:', taskName);
+                onStop();
+              }}
             />
           </>
         ) : (
@@ -96,7 +119,10 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
                 placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                 value={newTaskName}
                 onChangeText={setNewTaskName}
-                onSubmitEditing={handleStartNewTask}
+                onSubmitEditing={() => {
+                  console.log('[TimerPlayer] New task submitted via keyboard:', newTaskName.trim());
+                  handleStartNewTask();
+                }}
                 returnKeyType="go"
                 accessibilityLabel="Task name input"
                 accessibilityHint="Enter a name for your new task"
@@ -105,10 +131,10 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
             
             <Pressable 
               onPress={handleStartNewTask}
-              className="w-10 h-10 rounded-full bg-blue-500 items-center justify-center ml-2"
+              className={`w-10 h-10 rounded-full bg-blue-500 items-center justify-center ml-2 ${!playerEnabled ? 'opacity-50' : ''}`}
               accessibilityLabel="Start new task"
               accessibilityRole="button"
-              disabled={!newTaskName.trim()}
+              disabled={!playerEnabled}
             >
               <Ionicons name="play" size={18} color="#FFFFFF" />
             </Pressable>

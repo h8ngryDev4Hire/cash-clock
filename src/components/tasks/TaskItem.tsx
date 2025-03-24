@@ -1,7 +1,18 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Task } from '../../types/definitions';
+
+// Interface for the task object passed to TaskItem
+interface Task {
+  id: string;
+  name: string;
+  totalTime: number; // in seconds
+  projectId?: string | null;
+  createdAt: number; // timestamp
+  updatedAt: number; // timestamp
+  isRunning?: boolean;
+  isCompleted?: boolean;
+}
 
 interface TaskItemProps {
   task: Task;
@@ -95,7 +106,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
   return (
     <TouchableOpacity 
       className={`p-3 rounded-xl mb-3 mx-1 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white shadow-sm border border-gray-100'}`}
-      onPress={() => onPress?.(task.id)}
+      onPress={() => {
+        console.log('[TaskItem] Task pressed:', task.name, task.id);
+        onPress?.(task.id);
+      }}
       accessibilityLabel={`Task: ${task.name}`}
       accessibilityHint="Tap to view task details"
     >
@@ -145,7 +159,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
         {/* Play button */}
         <TouchableOpacity 
           className={`h-8 px-3 rounded-full flex-row items-center ${isDark ? 'bg-indigo-900' : 'bg-indigo-50'}`}
-          onPress={() => onPlayPress(task.id)}
+          onPress={() => {
+            console.log('[TaskItem] Play button pressed for task:', task.name, task.id);
+            onPlayPress(task.id);
+          }}
           accessibilityLabel={`Start ${task.name}`}
           accessibilityHint="Start timer for this task"
         >
