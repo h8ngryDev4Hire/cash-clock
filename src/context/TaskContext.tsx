@@ -1,34 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-export interface Task {
-  id: string;
-  name: string;
-  totalTime: number; // in seconds
-  projectId?: string;
-  createdAt: number; // timestamp
-  updatedAt: number; // timestamp
-}
-
-export interface TimeEntry {
-  id: string;
-  taskId: string;
-  startTime: number; // timestamp
-  endTime: number | null; // timestamp
-  duration: number; // in seconds
-}
-
-interface TaskContextType {
-  tasks: Task[];
-  timeEntries: TimeEntry[];
-  currentTask: Task | null;
-  addTask: (name: string, projectId?: string) => Task;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  startTimeEntry: (taskId: string) => TimeEntry;
-  stopTimeEntry: (entryId: string) => TimeEntry;
-  getTaskById: (id: string) => Task | undefined;
-  getTimeEntriesForTask: (taskId: string) => TimeEntry[];
-}
+import { Task, TimeEntry, TaskContextType } from '../types/definitions';
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
