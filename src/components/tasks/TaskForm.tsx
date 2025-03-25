@@ -2,14 +2,18 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Switch, TouchableOpacity, useColorScheme, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-interface TaskFormProps {
+export interface TaskFormProps {
   onAddTask: (taskName: string, startTimer: boolean) => void;
+  isSubmitting?: boolean;
 }
 
 /**
  * TaskForm component for creating new tasks with optional timer start
  */
-const TaskForm: React.FC<TaskFormProps> = ({ onAddTask }) => {
+const TaskForm: React.FC<TaskFormProps> = ({ 
+  onAddTask, 
+  isSubmitting = false 
+}) => {
   const [taskName, setTaskName] = useState('');
   const [startTimerAfterCreation, setStartTimerAfterCreation] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -17,7 +21,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onAddTask }) => {
   const isDark = colorScheme === 'dark';
 
   const handleSubmit = () => {
-    if (taskName.trim()) {
+    if (taskName.trim() && !isSubmitting) {
       console.log('[TaskForm] Create task button pressed:', taskName.trim(), 'startTimer:', startTimerAfterCreation);
       onAddTask(taskName.trim(), startTimerAfterCreation);
       setTaskName('');
@@ -51,66 +55,62 @@ const TaskForm: React.FC<TaskFormProps> = ({ onAddTask }) => {
             {isExpanded ? "New Task" : "Add a task"}
           </Text>
         </View>
-        
         <Ionicons 
           name={isExpanded ? "chevron-up" : "chevron-down"} 
-          size={18} 
-          color={isDark ? "#9CA3AF" : "#6B7280"} 
+          size={20} 
+          color={isDark ? "#D1D5DB" : "#6B7280"} 
         />
       </Pressable>
-      
-      {/* Expanded form */}
+
+      {/* Form body - only visible when expanded */}
       {isExpanded && (
-        <View className="px-4 pb-4">
-          <TextInput
-            className={`rounded-lg px-4 py-3 text-base mb-4 ${isDark ? 'bg-gray-700 text-white' : 'bg-gray-50'}`}
-            value={taskName}
-            onChangeText={setTaskName}
-            placeholder="What are you working on?"
-            placeholderTextColor={isDark ? "#888888" : "#9CA3AF"}
-            returnKeyType="done"
-            onSubmitEditing={handleSubmit}
-            accessibilityLabel="Task name input"
-            autoFocus={true}
-          />
-          
+        <View className="p-4 pt-0">
+          <View className={`border rounded-lg overflow-hidden mb-3 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+            <TextInput
+              className={`p-3 ${isDark ? 'text-white bg-gray-700' : 'text-gray-800 bg-gray-50'}`}
+              placeholder="What would you like to work on?"
+              placeholderTextColor={isDark ? "#9CA3AF" : "#9CA3AF"}
+              value={taskName}
+              onChangeText={setTaskName}
+              returnKeyType="go"
+              onSubmitEditing={handleSubmit}
+              accessibilityLabel="Task name input"
+              accessibilityHint="Enter the name of your new task"
+            />
+          </View>
+
           <View className="flex-row items-center justify-between mb-4">
             <View className="flex-row items-center">
               <Ionicons 
                 name="timer-outline" 
-                size={18} 
-                color={isDark ? "#9CA3AF" : "#6B7280"} 
-                style={{ marginRight: 8 }}
+                size={20} 
+                color={isDark ? "#D1D5DB" : "#6B7280"} 
+                style={{ marginRight: 8 }} 
               />
-              <Text className={`text-base ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Start timer immediately
+              <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                Start timer after creating
               </Text>
             </View>
-            
             <Switch
               value={startTimerAfterCreation}
-              onValueChange={(value) => {
-                console.log('[TaskForm] Toggle start timer switch:', value);
-                setStartTimerAfterCreation(value);
-              }}
-              trackColor={{ false: "#ccc", true: "#4F46E5" }}
-              thumbColor={startTimerAfterCreation ? "#ffffff" : "#f4f3f4"}
-              accessibilityLabel="Start timer after task creation"
-              accessibilityHint="Toggles whether the timer will start automatically after creating a task"
+              onValueChange={setStartTimerAfterCreation}
+              trackColor={{ false: '#d1d5db', true: '#818cf8' }}
+              thumbColor={startTimerAfterCreation ? '#6366f1' : '#f4f4f5'}
+              ios_backgroundColor="#d1d5db"
+              accessibilityLabel="Start timer toggle"
+              accessibilityHint="Toggle to start the timer immediately after task creation"
             />
           </View>
-          
-          {/* Project selector would go here in a real app */}
-          
-          <TouchableOpacity 
-            className={`py-3 rounded-lg justify-center items-center ${taskName.trim() ? 'bg-indigo-600' : 'bg-gray-400'}`}
+
+          <TouchableOpacity
+            className={`rounded-lg py-3 px-4 items-center justify-center ${!taskName.trim() || isSubmitting ? 'bg-gray-400 dark:bg-gray-700' : 'bg-indigo-600'}`}
             onPress={handleSubmit}
-            disabled={!taskName.trim()}
+            disabled={!taskName.trim() || isSubmitting}
             accessibilityLabel="Create task button"
-            accessibilityHint={startTimerAfterCreation ? "Creates a new task and starts the timer" : "Creates a new task"}
+            accessibilityHint="Press to create a new task"
           >
-            <Text className="text-white text-base font-medium">
-              {startTimerAfterCreation ? "Create & Start Timer" : "Create Task"}
+            <Text className="text-white font-medium">
+              {isSubmitting ? "Creating..." : "Create Task"}
             </Text>
           </TouchableOpacity>
         </View>

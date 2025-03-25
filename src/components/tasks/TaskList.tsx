@@ -1,13 +1,26 @@
 import React from 'react';
-import { FlatList, View, Text, useColorScheme } from 'react-native';
-import { TaskSchema } from '../../types/entities';
+import { FlatList, useColorScheme } from 'react-native';
+import Animated, { 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withTiming,
+  useAnimatedGestureHandler
+} from 'react-native-reanimated';
+import { PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 import TaskItem from './TaskItem';
-import { Ionicons } from '@expo/vector-icons';
+import { Task } from '../../types/core';
+
+// Define gesture context type
+type GestureContext = {
+  startY: number;
+};
 
 interface TaskListProps {
-  tasks: TaskSchema[];
+  tasks: Task[];
   onTaskPress?: (taskId: string) => void;
   onPlayPress: (taskId: string) => void;
+  onDeletePress?: (taskId: string) => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -16,41 +29,106 @@ interface TaskListProps {
 const TaskList: React.FC<TaskListProps> = ({ 
   tasks, 
   onTaskPress,
-  onPlayPress 
+  onPlayPress,
+  onDeletePress,
+  isLoading = false
 }) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   
-  // Convert TaskSchema to Task for compatibility with TaskItem
-  const convertedTasks = tasks.map(task => ({
-    id: task.itemId,
-    name: task.name,
-    totalTime: task.getTotalTimeSpent ? task.getTotalTimeSpent() : 0,
-    isRunning: task.isRunning,
-    isCompleted: task.isCompleted,
-    projectId: task.projectId || undefined,
-    createdAt: task.created,
-    updatedAt: task.lastUpdated
-  }));
-
+  // Render a draggable task item
+  const renderItem = ({ item }: { item: Task }) => {
+    return (
+      <DraggableTaskItem
+        key={item.id}
+        task={item}
+        onPress={onTaskPress}
+        onPlayPress={onPlayPress}
+        onDeletePress={onDeletePress}
+      />
+    );
+  };
+  
   return (
     <FlatList
       className="flex-1"
-      data={convertedTasks}
+      data={tasks}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <TaskItem 
-          task={item} 
-          onPress={onTaskPress}
-          onPlayPress={onPlayPress} 
-        />
-      )}
+      renderItem={renderItem}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ 
         flexGrow: 1, 
         paddingBottom: 100 // Extra padding for bottom timer
       }}
     />
+  );
+};
+
+// Draggable wrapper for TaskItem
+interface DraggableTaskItemProps {
+  task: Task;
+  onPress?: (taskId: string) => void;
+  onPlayPress: (taskId: string) => void;
+  onDeletePress?: (taskId: string) => void;
+}
+
+const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({
+  task,
+  onPress,
+  onPlayPress,
+  onDeletePress
+}) => {
+  // Animation values
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(1);
+  
+  // Animated styles
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value }
+    ],
+  }));
+  
+  // Handle the pan gesture
+  const gestureHandler = useAnimatedGestureHandler<
+    PanGestureHandlerGestureEvent,
+    GestureContext
+  >({
+    onStart: (_, context) => {
+      context.startY = translateY.value;
+      scale.value = withTiming(1.05, { duration: 100 });
+    },
+    onActive: (event, context) => {
+      // Update position based on the gesture
+      translateY.value = context.startY + event.translationY;
+    },
+    onEnd: () => {
+      // Reset position and scale when gesture ends
+      translateY.value = withTiming(0, { duration: 300 });
+      scale.value = withTiming(1, { duration: 200 });
+    },
+    onCancel: () => {
+      // Also reset on cancel
+      translateY.value = withTiming(0, { duration: 300 });
+      scale.value = withTiming(1, { duration: 200 });
+    },
+  });
+  
+  return (
+    <PanGestureHandler
+      onGestureEvent={gestureHandler}
+      activeOffsetY={[-10, 10]}
+    >
+      <Animated.View style={animatedStyle}>
+        <TaskItem 
+          task={task}
+          onPress={onPress}
+          onPlayPress={onPlayPress}
+          onDeletePress={onDeletePress}
+        />
+      </Animated.View>
+    </PanGestureHandler>
   );
 };
 

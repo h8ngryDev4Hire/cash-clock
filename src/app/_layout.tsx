@@ -1,40 +1,55 @@
 import { Slot, useRouter, usePathname } from "expo-router";
 import { useColorScheme, View, TouchableOpacity, Text } from "react-native";
+import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { AppProvider } from "../context/AppContext";
+import { AppProvider } from "@context/AppContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import TimerPlayer from "../components/timer/TimerPlayer";
-import { TimerProvider } from "../context/TimerContext";
-import { useTimer } from "../hooks/useTimer";
-import { useStorage } from "../hooks/useStorage";
-import { TaskSchema } from "../types/entities";
+import TimerPlayer from "@components/timer/TimerPlayer";
+import { useTimer } from "@hooks/useTimer";
+import useTask from "@hooks/useTask";
 import "../../global.css"
-import { millisecondsToSeconds } from "../services/timer/time";
+import { millisecondsToSeconds } from "@services/timer/time";
 
 // Wrapper component for the timer player to access the timer context
 const TimerPlayerContainer = () => {
   const { isRunning, isPaused, elapsedTime, taskId, formattedTime, startTimer, pauseTimer, resumeTimer, stopTimer } = useTimer();
-  const { tasks } = useStorage();
+  const { createTask, getTaskWithTime } = useTask();
   const router = useRouter();
+  const pathname = usePathname();
+  const [taskName, setTaskName] = useState("Unnamed Task");
   
-  // Get task name from storage using taskId
-  const task = taskId ? tasks.getById(taskId) : undefined;
-  const taskName = task?.name || "Unnamed Task";
+  // Determine if timer should be visible
+  const isTimerActive = isRunning || isPaused;
+  const isHomeView = pathname === "/home" || pathname === "/";
+  const shouldShowTimer = isTimerActive || isHomeView;
+  
+  // Get task name when taskId changes
+  useEffect(() => {
+    const fetchTaskName = async () => {
+      if (taskId) {
+        const taskData = await getTaskWithTime(taskId);
+        if (taskData) {
+          setTaskName(taskData.name);
+        }
+      }
+    };
+    
+    fetchTaskName();
+  }, [taskId]);
   
   // Convert milliseconds to seconds for the TimerPlayer component
   const elapsedTimeInSeconds = millisecondsToSeconds(elapsedTime);
   
   // Handle starting a new task
-  const handleStartNewTask = (taskName: string) => {
-    if (taskName.trim()) {
-      // Create a new task and start the timer for it
-      tasks.create({ name: taskName.trim(), isRunning: true, isGrouped: false, isCompleted: false, projectId: null })
-        .then((newTask: TaskSchema) => {
-          startTimer(newTask.itemId);
-        })
-        .catch((error: Error) => {
-          console.error("Failed to create task:", error);
-        });
+  const handleStartNewTask = async (name: string) => {
+    if (name.trim()) {
+      try {
+        // Create a new task and start the timer for it
+        const newTask = await createTask(name.trim());
+        startTimer(newTask.id);
+      } catch (error) {
+        console.error("Failed to create task:", error);
+      }
     }
   };
   
@@ -42,13 +57,13 @@ const TimerPlayerContainer = () => {
   const handleTaskPress = () => {
     if (taskId) {
       // Navigate to the task details screen
-      // TODO: Implement task details screen
-      console.log("Navigate to task details:", taskId);
+      router.push(`/task/${taskId}`);
     }
   };
   
   return (
     <TimerPlayer 
+      isVisible={shouldShowTimer}
       activeTimer={isRunning || isPaused}
       taskName={taskName}
       elapsedTime={elapsedTimeInSeconds}
@@ -102,63 +117,61 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView className="flex-1">
       <AppProvider>
-        <TimerProvider>
+        <View className="flex-1">
+
+          {/* Main content area */}
           <View className="flex-1">
 
-            {/* Main content area */}
-            <View className="flex-1">
+            {/* Top Buffer */}
+            <View className={`h-[4rem] bg-[#1F2937]`}/>
 
-              {/* Top Buffer */}
-              <View className={`h-[4rem] bg-[#1F2937]`}/>
+            <Slot />
 
-              <Slot />
-
-              {/* Timer Player positioned above the custom nav bar */}
-              <View className="">
-                <TimerPlayerContainer />
-              </View>
+            {/* Timer Player positioned above the custom nav bar */}
+            <View className="">
+              <TimerPlayerContainer />
             </View>
-            
-            {/* Custom Navigation Bar */}
-            <View className={`flex-row justify-around items-center py-3 border-t ${
-              isDark ? "bg-[#1F2937] border-gray-700" : "bg-white border-gray-200"
-            }`}>
-              {navItems.map((item) => (
-                <TouchableOpacity
-                  key={item.name}
-                  onPress={() => {
-                    console.log('[Navigation] Tab pressed:', item.title);
-                    router.replace(item.path);
-                  }}
-                  className="items-center px-3 py-1"
-                >
-                  <Ionicons
-                    name={item.icon}
-                    size={24}
-                    color={
-                      pathname === item.path
-                        ? (isDark ? "#ffffff" : "#6366F1") 
-                        : (isDark ? "#888888" : "#9CA3AF")
-                    }
-                  />
-                  <Text
-                    className={`text-xs mt-1 ${
-                      pathname === item.path
-                        ? (isDark ? "text-white" : "text-indigo-500")
-                        : (isDark ? "text-gray-400" : "text-gray-500")
-                    }`}
-                  >
-                    {item.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            
-            {/* Bottom Buffer */}
-            <View className={`h-[1rem] bg-[#1F2937]`}/>
-
           </View>
-        </TimerProvider>
+          
+          {/* Custom Navigation Bar */}
+          <View className={`flex-row justify-around items-center py-3 border-t ${
+            isDark ? "bg-[#1F2937] border-gray-700" : "bg-white border-gray-200"
+          }`}>
+            {navItems.map((item) => (
+              <TouchableOpacity
+                key={item.name}
+                onPress={() => {
+                  console.log('[Navigation] Tab pressed:', item.title);
+                  router.replace(item.path);
+                }}
+                className="items-center px-3 py-1"
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={24}
+                  color={
+                    pathname === item.path
+                      ? (isDark ? "#ffffff" : "#6366F1") 
+                      : (isDark ? "#888888" : "#9CA3AF")
+                  }
+                />
+                <Text
+                  className={`text-xs mt-1 ${
+                    pathname === item.path
+                      ? (isDark ? "text-white" : "text-indigo-500")
+                      : (isDark ? "text-gray-400" : "text-gray-500")
+                  }`}
+                >
+                  {item.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          {/* Bottom Buffer */}
+          <View className={`h-[1rem] bg-[#1F2937]`}/>
+
+        </View>
       </AppProvider>
     </GestureHandlerRootView>
   );

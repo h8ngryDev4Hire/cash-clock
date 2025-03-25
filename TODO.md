@@ -4,10 +4,11 @@
 - [x] Create StorageService for SQLite operations
 - [x] Write tests for StorageService
 - [x] Modularize UI components into feature-based folder structure
-- [ ] Create TaskManagementService class for task-related operations
+- [x] Create TaskManagementService class for task-related operations
 - [ ] Write tests for TaskManagementService
-- [ ] Create custom hooks to bridge UI components with backend services
+- [x] Create custom hooks to bridge UI components with backend services
 - [ ] Set up database initialization on app startup
+- [ ] Implement task details screen
 
 ## Storage Layer
 - [x] Base StorageService with CRUD operations
@@ -15,8 +16,8 @@
 - [ ] Data export/import functionality
 
 ## Business Logic Layer
-- [ ] TaskService for task operations
-- [ ] TimeEntryService for time tracking
+- [x] TaskService for task operations
+- [x] TimeEntryService for time tracking
 - [ ] ProjectService for project grouping
 - [ ] Analytics calculations and reporting
 
@@ -41,16 +42,18 @@
     - [x] Button
     - [x] EmptyState
 - [ ] Project management UI
+  - [x] Basic project list/item components
+  - [ ] Project creation/editing interface
+  - [ ] Task association with projects
 - [ ] Analytics dashboard
 - [ ] Settings screen
+
+## Context Architecture
+- [x] Refactor contexts to avoid redundant wrapping (moved all providers to AppContext)
+- [x] TimerContext provides state and methods throughout the app
+- [x] useTimer() hook API implementation
 
 ## iOS Integration
 - [ ] Implement widget support
 - [ ] Set up Dynamic Island integration
 - [ ] Configure Live Activities
-
-## Timer Architecture
-- [ ] TimerService handles core timing logic and persistence
-- [ ] TimerContext provides state and methods throughout the app
-- [ ] useTimer() gives components a simple API: 
-  - const { startTimer, stopTimer, pauseTimer, resumeTimer, currentTime, isRunning } = useTimer()

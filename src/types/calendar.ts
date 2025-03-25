@@ -1,4 +1,4 @@
-import { TimeEntry, Task } from './definitions';
+import { TimeEntry, Task } from './core';
 
 /**
  * CalendarEntry extends TimeEntry with additional display properties

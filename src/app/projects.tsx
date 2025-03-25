@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, SafeAreaView, useColorScheme } from 'react-native';
 import ProjectList from '../components/projects/ProjectList';
-import { Project } from '../types/definitions';
+import { Project } from '../types/core';
 
 // Mock data for projects (will be replaced with actual data later)
 const MOCK_PROJECTS: (Project & { taskCount?: number; totalTime?: number; icon?: string })[] = [

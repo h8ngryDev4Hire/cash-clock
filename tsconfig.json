@@ -5,6 +5,24 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@app/*": [
+        "./src/app/*"
+      ],
+      "@components/*": [
+        "./src/components/*"
+      ],
+      "@context/*": [
+        "./src/context/*"
+      ],
+      "@hooks/*": [
+        "./src/hooks/*"
+      ],
+      "@types/*": [
+        "./src/types/*"
+      ],
+      "@services/*": [
+        "./src/services/*"
       ]
     }
   },

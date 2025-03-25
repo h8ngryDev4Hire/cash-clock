@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Project } from '../../types/definitions';
+import { Project } from '../../types/core';
 
 interface ProjectItemProps {
   project: Project & {

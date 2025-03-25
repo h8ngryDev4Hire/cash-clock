@@ -1,7 +1,7 @@
 import React from 'react';
 import { FlatList, Text, View, TouchableOpacity, useColorScheme } from 'react-native';
 import ProjectItem from './ProjectItem';
-import { Project } from '../../types/definitions';
+import { Project } from '../../types/core';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ExtendedProject extends Project {
