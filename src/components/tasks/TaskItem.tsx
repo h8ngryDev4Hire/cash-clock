@@ -1,7 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, useColorScheme, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Swipeable, RectButton } from 'react-native-gesture-handler';
+import { RectButton } from 'react-native-gesture-handler';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { formatTaskDuration, formatRelativeTime } from '@lib/util/time/timeFormatters';
+import { log } from '@lib/util/debugging/logging';
 
 // Interface for the task object passed to TaskItem
 interface Task {
@@ -36,61 +39,6 @@ const TaskItem: React.FC<TaskItemProps> = ({
   const swipeableRef = useRef<Swipeable>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Format duration as hours and minutes
-  const formatTime = (seconds: number): string => {
-    if (seconds === 0) return 'Not started';
-    
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (hours === 0 && minutes === 0) {
-      return 'Just started';
-    }
-    
-    if (hours === 0) {
-      return `${minutes}m`;
-    }
-    
-    if (minutes === 0) {
-      return `${hours}h`;
-    }
-    
-    return `${hours}h ${minutes}m`;
-  };
-  
-  // Format timestamp as relative time
-  const formatRelativeTime = (timestamp: number): string => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    
-    // Less than a minute
-    if (diff < 60000) {
-      return 'Just now';
-    }
-    
-    // Less than an hour
-    if (diff < 3600000) {
-      const minutes = Math.floor(diff / 60000);
-      return `${minutes}m ago`;
-    }
-    
-    // Less than a day
-    if (diff < 86400000) {
-      const hours = Math.floor(diff / 3600000);
-      return `${hours}h ago`;
-    }
-    
-    // Less than a week
-    if (diff < 604800000) {
-      const days = Math.floor(diff / 86400000);
-      return `${days}d ago`;
-    }
-    
-    // Format as date
-    const date = new Date(timestamp);
-    return date.toLocaleDateString();
-  };
-  
   // Generate a color based on task name (for demo purposes)
   const getTaskColor = (name: string): string => {
     const colors = [
@@ -110,7 +58,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
 
   // Handle delete confirmation
   const confirmDelete = () => {
-    console.log('[TaskItem] Confirming delete for task:', task.name, task.id);
+    log('Confirming delete for task: ' + task.name + ', ' + task.id, 'TaskItem', 'INFO');
     Alert.alert(
       "Delete Task",
       `Are you sure you want to delete "${task.name}"?`,
@@ -118,7 +66,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
         {
           text: "Cancel",
           onPress: () => {
-            console.log('[TaskItem] Delete cancelled for task:', task.id);
+            log('Delete cancelled for task: ' + task.id, 'TaskItem', 'INFO');
             swipeableRef.current?.close();
           },
           style: "cancel"
@@ -126,7 +74,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
         {
           text: "Delete",
           onPress: () => {
-            console.log('[TaskItem] Delete confirmed for task:', task.id);
+            log('Delete confirmed for task: ' + task.id, 'TaskItem', 'INFO');
             setIsDeleting(true);
             onDeletePress?.(task.id);
           },
@@ -167,11 +115,12 @@ const TaskItem: React.FC<TaskItemProps> = ({
       renderRightActions={renderRightActions}
       friction={2}
       rightThreshold={40}
+      overshootRight={false}
     >
       <TouchableOpacity 
         className={`p-3 rounded-xl mb-3 mx-1 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white shadow-sm border border-gray-100'}`}
         onPress={() => {
-          console.log('[TaskItem] Task pressed:', task.name, task.id);
+          log('Task pressed: ' + task.name + ', ' + task.id, 'TaskItem', 'INFO');
           onPress?.(task.id);
         }}
         accessibilityLabel={`Task: ${task.name}`}
@@ -201,7 +150,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
               style={{ marginRight: 4 }}
             />
             <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              {formatTime(task.totalTime)}
+              {formatTaskDuration(task.totalTime)}
             </Text>
           </View>
           
@@ -224,7 +173,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
           <TouchableOpacity 
             className={`h-8 px-3 rounded-full flex-row items-center ${isDark ? 'bg-indigo-900' : 'bg-indigo-50'}`}
             onPress={() => {
-              console.log('[TaskItem] Play button pressed for task:', task.name, task.id);
+              log('Play button pressed for task: ' + task.name + ', ' + task.id, 'TaskItem', 'INFO');
               onPlayPress(task.id);
             }}
             accessibilityLabel={`Start ${task.name}`}

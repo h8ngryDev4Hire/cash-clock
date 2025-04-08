@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { addDays } from 'date-fns';
 import DaySelector from '../components/calendar/DaySelector';
 import HourlyTimeline from '../components/calendar/HourlyTimeline';
+import { log } from '@lib/util/debugging/logging';
 
 /**
  * CalendarScreen displays a 24-hour calendar view with time entries
@@ -54,13 +55,13 @@ export default function CalendarScreen() {
   
   // Handle time entry press
   const handleEntryPress = (entryId: string) => {
-    console.log('Time entry pressed:', entryId);
+    log('Time entry pressed: ' + entryId, 'CalendarScreen', 'INFO');
     // In a real app, navigate to entry detail/edit
   };
   
   // Handle add new entry
   const handleAddEntry = () => {
-    console.log('Add new time entry');
+    log('Add new time entry', 'CalendarScreen', 'INFO');
     // In a real app, open a modal or navigate to entry creation
   };
 

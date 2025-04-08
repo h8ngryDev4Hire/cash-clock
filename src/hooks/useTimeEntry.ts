@@ -1,9 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useContext } from 'react';
+import { StorageContext } from '../context/StorageContext';
 import { TimeEntrySchema } from '../types/entities';
-import { useStorageContext } from '../context/StorageContext';
 
 export const useTimeEntry = () => {
-  const storage = useStorageContext();
+  const storage = useContext(StorageContext);
+  
+  if (!storage) {
+    throw new Error('useTimeEntry must be used within a StorageProvider');
+  }
 
   const createTimeEntry = useCallback(async (entry: Omit<TimeEntrySchema, 'itemId' | 'created' | 'lastUpdated'>) => {
     const dbData = {

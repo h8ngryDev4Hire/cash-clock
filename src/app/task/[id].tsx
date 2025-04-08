@@ -3,7 +3,8 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator,
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import useTask from '@hooks/useTask';
-import { formatDuration } from '@services/timer/time';
+import { formatDuration } from '@lib/util/time/timeFormatters';
+import { log } from '@lib/util/debugging/logging';
 
 /**
  * TaskEditor component for viewing and editing task details
@@ -43,13 +44,13 @@ export default function TaskEditor() {
   const handleSave = async () => {
     if (!id || taskName.trim() === '') return;
     
-    console.log('[TaskEditor] Saving task name:', taskName.trim(), 'for task ID:', id);
+    log('Saving task name: ' + taskName.trim() + ' for task ID: ' + id, 'TaskEditor', 'INFO');
     setIsSaving(true);
     try {
       await updateTask(id, { name: taskName.trim() });
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to update task:', error);
+      log('Failed to update task: ' + error, 'TaskEditor', 'ERROR', { variableName: 'error', value: error });
     } finally {
       setIsSaving(false);
     }
@@ -57,26 +58,26 @@ export default function TaskEditor() {
   
   // Handle delete task
   const handleDeleteTask = () => {
-    console.log('[TaskEditor] Delete button pressed for task:', id);
+    log('Delete button pressed for task: ' + id, 'TaskEditor', 'INFO');
     Alert.alert(
       "Delete Task",
       `Are you sure you want to delete "${taskName}"?`,
       [
         {
           text: "Cancel",
-          onPress: () => console.log('[TaskEditor] Delete cancelled for task:', id),
+          onPress: () => log('Delete cancelled for task: ' + id, 'TaskEditor', 'INFO'),
           style: "cancel"
         },
         {
           text: "Delete",
           onPress: async () => {
-            console.log('[TaskEditor] Delete confirmed for task:', id);
+            log('Delete confirmed for task: ' + id, 'TaskEditor', 'INFO');
             try {
               await deleteTask(id);
-              console.log('[TaskEditor] Task deleted successfully:', id);
+              log('Task deleted successfully: ' + id, 'TaskEditor', 'INFO');
               router.back();
             } catch (error) {
-              console.error('[TaskEditor] Error deleting task:', error);
+              log('Error deleting task: ' + error, 'TaskEditor', 'ERROR', { variableName: 'error', value: error });
             }
           },
           style: "destructive"
@@ -94,7 +95,7 @@ export default function TaskEditor() {
       <View className={`flex-row items-center justify-between p-4 ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
         <TouchableOpacity 
           onPress={() => {
-            console.log('[TaskEditor] Back button pressed, returning to previous screen');
+            log('Back button pressed, returning to previous screen', 'TaskEditor', 'INFO');
             router.back();
           }}
           className="p-2"
@@ -127,7 +128,7 @@ export default function TaskEditor() {
             <Text className={`text-red-500 mb-2`}>Error loading task</Text>
             <TouchableOpacity 
               onPress={() => {
-                console.log('[TaskEditor] Error view back button pressed');
+                log('Error view back button pressed', 'TaskEditor', 'INFO');
                 router.back();
               }}
               className="p-2 bg-red-500 rounded-md"
@@ -148,7 +149,7 @@ export default function TaskEditor() {
                   <TextInput
                     value={taskName}
                     onChangeText={(text) => {
-                      console.log('[TaskEditor] Task name edited:', text);
+                      log('Task name edited: ' + text, 'TaskEditor', 'INFO');
                       setTaskName(text);
                     }}
                     className={`p-2 border rounded-md ${isDark ? 'border-gray-700 bg-gray-900 text-white' : 'border-gray-300 bg-gray-50 text-gray-800'}`}
@@ -160,7 +161,7 @@ export default function TaskEditor() {
                   <View className="flex-row justify-end mt-2">
                     <TouchableOpacity 
                       onPress={() => {
-                        console.log('[TaskEditor] Edit cancelled, reverting to original task name');
+                        log('Edit cancelled, reverting to original task name', 'TaskEditor', 'INFO');
                         setIsEditing(false);
                       }}
                       className="px-3 py-1 mr-2 rounded-md"
@@ -189,7 +190,7 @@ export default function TaskEditor() {
                   
                   <TouchableOpacity 
                     onPress={() => {
-                      console.log('[TaskEditor] Edit button pressed for task name:', taskName);
+                      log('Edit button pressed for task name: ' + taskName, 'TaskEditor', 'INFO');
                       setIsEditing(true);
                     }}
                     className="p-2"

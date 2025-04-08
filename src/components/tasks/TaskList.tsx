@@ -1,5 +1,5 @@
-import React from 'react';
-import { FlatList, useColorScheme } from 'react-native';
+import React, { useEffect } from 'react';
+import { FlatList, useColorScheme, View } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
@@ -9,6 +9,9 @@ import Animated, {
 import { PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 import TaskItem from './TaskItem';
 import { Task } from '../../types/core';
+import { useError } from '@hooks/useError';
+import { ErrorLevel } from '@def/error';
+import { LocalErrorMessage } from '@components/ui/LocalErrorMessage';
 
 // Define gesture context type
 type GestureContext = {
@@ -36,6 +39,38 @@ const TaskList: React.FC<TaskListProps> = ({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   
+  // Initialize error handling with local errors
+  const { error, handleError, clearError } = useError('TaskList');
+  
+  // Check for invalid task data
+  useEffect(() => {
+    try {
+      if (tasks && !Array.isArray(tasks)) {
+        throw new Error('Invalid tasks data format');
+      }
+      
+      // Clear error if data is valid
+      if (error) clearError();
+    } catch (err) {
+      handleError(err, ErrorLevel.ERROR, { operation: 'validateTasksData' });
+    }
+  }, [tasks]);
+  
+  // Handle safe play press
+  const handleSafePlayPress = (taskId: string) => {
+    try {
+      if (!taskId) {
+        throw new Error('Cannot start timer: Invalid task ID');
+      }
+      onPlayPress(taskId);
+    } catch (err) {
+      handleError(err, ErrorLevel.ERROR, { 
+        operation: 'startTaskTimer',
+        entityId: taskId 
+      });
+    }
+  };
+  
   // Render a draggable task item
   const renderItem = ({ item }: { item: Task }) => {
     return (
@@ -43,24 +78,35 @@ const TaskList: React.FC<TaskListProps> = ({
         key={item.id}
         task={item}
         onPress={onTaskPress}
-        onPlayPress={onPlayPress}
+        onPlayPress={handleSafePlayPress}
         onDeletePress={onDeletePress}
       />
     );
   };
   
   return (
-    <FlatList
-      className="flex-1"
-      data={tasks}
-      keyExtractor={(item) => item.id}
-      renderItem={renderItem}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ 
-        flexGrow: 1, 
-        paddingBottom: 100 // Extra padding for bottom timer
-      }}
-    />
+    <>
+      {error && (
+        <View className="mb-3">
+          <LocalErrorMessage 
+            error={error} 
+            onDismiss={clearError} 
+          />
+        </View>
+      )}
+      
+      <FlatList
+        className="flex-1"
+        data={error ? [] : tasks}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ 
+          flexGrow: 1, 
+          paddingBottom: 100 // Extra padding for bottom timer
+        }}
+      />
+    </>
   );
 };
 
@@ -78,6 +124,9 @@ const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({
   onPlayPress,
   onDeletePress
 }) => {
+  // Initialize error handling
+  const { handleError } = useError('DraggableTaskItem');
+  
   // Animation values
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);

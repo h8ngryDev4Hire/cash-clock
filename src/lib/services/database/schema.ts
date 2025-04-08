@@ -11,6 +11,8 @@ export const PROJECT_SCHEMA = `
 CREATE TABLE IF NOT EXISTS projects (
   item_id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  description TEXT,
+  color TEXT,
   created INTEGER NOT NULL,
   last_updated INTEGER NOT NULL
 );
@@ -83,3 +85,15 @@ export const createAllTables = async (executeSql: (query: string, params?: any[]
     await executeSql(schema);
   }
 };
+
+/**
+ * Get mapping of table names to their schema definitions
+ */
+export function getSchemaDefinitions(): Record<string, string> {
+  return {
+    'projects': PROJECT_SCHEMA,
+    'tasks': TASK_SCHEMA,
+    'time_entries': TIME_ENTRY_SCHEMA,
+    'settings': SETTINGS_SCHEMA
+  };
+}

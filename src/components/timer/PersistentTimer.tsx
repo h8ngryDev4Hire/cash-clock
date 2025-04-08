@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, TextInput, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TimerControls from './TimerControls';
+import { log } from '@lib/util/debugging/logging';
 
 interface TimerPlayerProps {
   isVisible?: boolean;
@@ -26,11 +27,11 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
   taskName = "Project research",
   elapsedTime = 1513, // 25 minutes and 13 seconds
   isRunning = true,
-  onPause = () => console.log('Pause'),
-  onResume = () => console.log('Resume'),
-  onStop = () => console.log('Stop'),
-  onTaskPress = () => console.log('Task pressed'),
-  onStartNewTask = (taskName) => console.log('Start new task:', taskName)
+  onPause = () => log('Pause', 'TimerPlayer', 'INFO'),
+  onResume = () => log('Resume', 'TimerPlayer', 'INFO'),
+  onStop = () => log('Stop', 'TimerPlayer', 'INFO'),
+  onTaskPress = () => log('Task pressed', 'TimerPlayer', 'INFO'),
+  onStartNewTask = (taskName) => log('Start new task: ' + taskName, 'TimerPlayer', 'INFO')
 }) => {
   const [newTaskName, setNewTaskName] = useState('');
   const colorScheme = useColorScheme();

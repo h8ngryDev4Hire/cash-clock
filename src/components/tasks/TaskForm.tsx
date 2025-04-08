@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Switch, TouchableOpacity, useColorScheme, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useError } from '@hooks/useError';
+import { ErrorLevel } from '@def/error';
+import { LocalErrorMessage } from '@components/ui/LocalErrorMessage';
+import { log } from '@lib/util/debugging/logging';
 
 export interface TaskFormProps {
   onAddTask: (taskName: string, startTimer: boolean) => void;
@@ -19,19 +23,58 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  
+  // Initialize error handling for form validation
+  const { error, handleError, clearError } = useError('TaskForm');
+
+  const validateTaskName = () => {
+    // Clear any previous errors first
+    clearError();
+    
+    // Validate task name
+    if (!taskName.trim()) {
+      throw new Error('Task name cannot be empty');
+    }
+    
+    if (taskName.trim().length < 3) {
+      throw new Error('Task name must be at least 3 characters long');
+    }
+    
+    if (taskName.trim().length > 50) {
+      throw new Error('Task name cannot exceed 50 characters');
+    }
+    
+    return true;
+  }
 
   const handleSubmit = () => {
-    if (taskName.trim() && !isSubmitting) {
-      console.log('[TaskForm] Create task button pressed:', taskName.trim(), 'startTimer:', startTimerAfterCreation);
-      onAddTask(taskName.trim(), startTimerAfterCreation);
-      setTaskName('');
-      // Keep the form open for easy task creation
+    try {
+      // Validate the task name
+      validateTaskName();
+      
+      if (!isSubmitting) {
+        log('Create task button pressed: ' + taskName.trim() + ', startTimer: ' + startTimerAfterCreation, 'TaskForm', 'INFO');
+        onAddTask(taskName.trim(), startTimerAfterCreation);
+        setTaskName('');
+        // Keep the form open for easy task creation
+      }
+    } catch (err) {
+      // Handle validation errors
+      handleError(err, ErrorLevel.WARNING, { operation: 'validateTaskForm' });
     }
   };
   
   const toggleExpanded = () => {
-    console.log('[TaskForm] Toggle form expanded:', !isExpanded);
+    log('Toggle form expanded: ' + !isExpanded, 'TaskForm', 'INFO');
     setIsExpanded(!isExpanded);
+    // Clear errors when toggling the form
+    clearError();
+  };
+  
+  const handleTextChange = (text: string) => {
+    setTaskName(text);
+    // Clear error when user starts typing
+    if (error) clearError();
   };
 
   return (
@@ -65,18 +108,45 @@ const TaskForm: React.FC<TaskFormProps> = ({
       {/* Form body - only visible when expanded */}
       {isExpanded && (
         <View className="p-4 pt-0">
-          <View className={`border rounded-lg overflow-hidden mb-3 ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+          {/* Display validation error if any */}
+          {error && (
+            <View className="mb-2">
+              <LocalErrorMessage
+                error={error}
+                onDismiss={() => {
+                  log('Clearing validation error', 'TaskForm', 'INFO');
+                  clearError();
+                }}
+                autoDismissTimeout={7000} // Give users more time to read validation errors
+              />
+            </View>
+          )}
+          
+          <View className={`border rounded-lg overflow-hidden mb-3 ${
+            error ? 'border-red-400' : (isDark ? 'border-gray-700' : 'border-gray-300')
+          }`}>
             <TextInput
               className={`p-3 ${isDark ? 'text-white bg-gray-700' : 'text-gray-800 bg-gray-50'}`}
               placeholder="What would you like to work on?"
               placeholderTextColor={isDark ? "#9CA3AF" : "#9CA3AF"}
               value={taskName}
-              onChangeText={setTaskName}
+              onChangeText={handleTextChange}
               returnKeyType="go"
               onSubmitEditing={handleSubmit}
               accessibilityLabel="Task name input"
               accessibilityHint="Enter the name of your new task"
             />
+          </View>
+          
+          {/* Character count indicator */}
+          <View className="flex-row justify-end mb-2">
+            <Text className={`text-xs ${
+              taskName.length < 3 ? 'text-red-400' : 
+              taskName.length > 40 ? 'text-yellow-500' : 
+              isDark ? 'text-gray-400' : 'text-gray-500'
+            }`}>
+              {taskName.length}/50 characters (min 3)
+            </Text>
           </View>
 
           <View className="flex-row items-center justify-between mb-4">

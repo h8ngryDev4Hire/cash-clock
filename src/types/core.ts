@@ -8,6 +8,8 @@ export interface Task {
   projectId?: string;
   createdAt: number; // timestamp
   updatedAt: number; // timestamp
+  isCompleted?: boolean;
+  isRunning?: boolean;
 }
 
 /**

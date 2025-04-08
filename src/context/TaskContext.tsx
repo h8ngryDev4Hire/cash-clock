@@ -1,15 +1,17 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { taskService } from '../services/task/TaskService';
-import { storageService } from '../services/storage/StorageService';
-import { TaskSchema, TimeEntrySchema } from '../types/entities';
-import { Task, TimeEntry } from '../types/core';
+import React, { createContext, useContext, useCallback } from 'react';
+import { taskService } from '@lib/services/task/TaskService';
+import { TaskSchema, TimeEntrySchema } from '@def/entities';
+import { Task, TimeEntry } from '@def/core';
+import { StorageContext } from './StorageContext';
+import { storageService } from '@lib/services/storage/StorageService';
+import { generateUUID } from '@lib/util/uuid';
+import { log } from '@lib/util/debugging/logging';
+
+
 
 // Define the shape of our context
 export interface TaskContextType {
-  tasks: TaskSchema[];
-  timeEntries: TimeEntrySchema[];
-  isLoading: boolean;
-  error: Error | null;
+  // No longer duplicate tasks and timeEntries here
   createTask: (name: string, projectId?: string) => Promise<TaskSchema>;
   updateTask: (taskId: string, updates: Partial<Omit<TaskSchema, 'itemId' | 'created' | 'lastUpdated'>>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
@@ -20,128 +22,178 @@ export interface TaskContextType {
   reopenTask: (taskId: string) => Promise<void>;
   assignTaskToProject: (taskId: string, projectId: string) => Promise<void>;
   unassignTaskFromProject: (taskId: string) => Promise<void>;
-  refreshTasks: () => Promise<void>;
 }
 
 // Create the context with a default (empty) value
 export const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [tasks, setTasks] = useState<TaskSchema[]>([]);
-  const [timeEntries, setTimeEntries] = useState<TimeEntrySchema[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  // Use StorageContext for data access
+  const storageContext = useContext(StorageContext);
+  
+  if (!storageContext) {
+    throw new Error('TaskProvider must be used within a StorageProvider');
+  }
+  
+  const { refreshData } = storageContext;
 
-  // Helper function to load tasks from the database
-  const loadTasks = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Initialize the database if needed
-      await storageService.initialize();
-      
-      // Get all tasks
-      const allTasks = await taskService.getAllTasks();
-      setTasks(allTasks);
-      
-      // For each task, get its time entries
-      const allTimeEntries: TimeEntrySchema[] = [];
-      for (const task of allTasks) {
-        const entries = await taskService.getTimeEntriesForTask(task.itemId);
-        allTimeEntries.push(...entries);
-      }
-      setTimeEntries(allTimeEntries);
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Failed to load tasks:', error);
-      setError(error instanceof Error ? error : new Error('Unknown error'));
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Load tasks on component mount
-  useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
-
-  // Create a new task
+  // Create a new task directly with the database
   const createTask = useCallback(async (name: string, projectId?: string): Promise<TaskSchema> => {
     try {
-      const newTask = await taskService.createTask(name, projectId);
+      log('Creating task with name: ' + name + ', projectId: ' + (projectId || 'none'), 'TaskContext.createTask', 'INFO');
       
-      // Update local state
-      setTasks(prevTasks => [...prevTasks, newTask]);
+      // Generate a unique ID
+      const taskId = generateUUID();
+      const timestamp = Math.floor(Date.now() / 1000);
       
+      // Use direct database access to ensure column names match
+      storageService.insert('tasks', {
+        item_id: taskId,
+        name: name,
+        project_id: projectId || null,
+        is_completed: 0,
+        is_running: 0,
+        is_grouped: projectId ? 1 : 0,
+        created: timestamp,
+        last_updated: timestamp
+      });
+      
+      log('Task created in database, refreshing data', 'TaskContext.createTask', 'INFO');
+      
+      // Force refresh data to update UI
+      await refreshData();
+      
+      // Return the task in the expected format
+      const newTask: TaskSchema = {
+        itemId: taskId,
+        name: name,
+        projectId: projectId || null,
+        isCompleted: false,
+        isRunning: false,
+        isGrouped: !!projectId,
+        created: timestamp,
+        lastUpdated: timestamp
+      };
+      
+      log('Returning new task', 'TaskContext.createTask', 'INFO', { variableName: 'newTask', value: newTask });
       return newTask;
     } catch (error) {
-      console.error('Failed to create task:', error);
-      setError(error instanceof Error ? error : new Error('Failed to create task'));
+      log('Failed to create task', 'TaskContext.createTask', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
-  }, []);
+  }, [refreshData]);
 
-  // Update an existing task
+  // Update an existing task directly with the database
   const updateTask = useCallback(async (
     taskId: string, 
     updates: Partial<Omit<TaskSchema, 'itemId' | 'created' | 'lastUpdated'>>
   ): Promise<void> => {
     try {
-      await taskService.updateTask(taskId, updates);
+      log(`Updating task: ${taskId}`, 'TaskContext.updateTask', 'INFO', { variableName: 'updates', value: updates });
       
-      // Update local state
-    setTasks(prevTasks => 
-      prevTasks.map(task => 
-          task.itemId === taskId 
-            ? { 
-                ...task, 
-                ...updates, 
-                lastUpdated: Math.floor(Date.now() / 1000) 
-              } 
-          : task
-      )
-    );
+      // Create database-friendly updates with snake_case names
+      const dbUpdates: Record<string, any> = {};
+      const timestamp = Math.floor(Date.now() / 1000);
+      
+      // Add last_updated timestamp
+      dbUpdates.last_updated = timestamp;
+      
+      // Map camelCase properties to snake_case column names
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.isCompleted !== undefined) dbUpdates.is_completed = updates.isCompleted ? 1 : 0;
+      if (updates.isRunning !== undefined) dbUpdates.is_running = updates.isRunning ? 1 : 0;
+      if (updates.isGrouped !== undefined) dbUpdates.is_grouped = updates.isGrouped ? 1 : 0;
+      if (updates.projectId !== undefined) dbUpdates.project_id = updates.projectId;
+      
+      log('Updating database', 'TaskContext.updateTask', 'INFO', { variableName: 'dbUpdates', value: dbUpdates });
+      
+      // Direct database update
+      storageService.update('tasks', dbUpdates, 'item_id = ?', [taskId]);
+      
+      log('Task updated in database, refreshing data', 'TaskContext.updateTask', 'INFO');
+      
+      // Force refresh data to update UI
+      await refreshData();
     } catch (error) {
-      console.error('Failed to update task:', error);
-      setError(error instanceof Error ? error : new Error('Failed to update task'));
+      log('Failed to update task', 'TaskContext.updateTask', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
-  }, []);
+  }, [refreshData]);
 
-  // Delete a task
+  // Delete a task directly with the database
   const deleteTask = useCallback(async (taskId: string): Promise<void> => {
     try {
-      await taskService.deleteTask(taskId);
+      log(`Deleting task: ${taskId}`, 'TaskContext.deleteTask', 'INFO');
       
-      // Update local state
-      setTasks(prevTasks => prevTasks.filter(task => task.itemId !== taskId));
-      setTimeEntries(prevEntries => prevEntries.filter(entry => entry.taskId !== taskId));
+      // First delete associated time entries
+      storageService.delete('time_entries', 'task_id = ?', [taskId]);
+      
+      // Then delete the task
+      storageService.delete('tasks', 'item_id = ?', [taskId]);
+      
+      log('Task deleted from database, refreshing data', 'TaskContext.deleteTask', 'INFO');
+      
+      // Force refresh data to update UI
+      await refreshData();
     } catch (error) {
-      console.error('Failed to delete task:', error);
-      setError(error instanceof Error ? error : new Error('Failed to delete task'));
+      log('Failed to delete task', 'TaskContext.deleteTask', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
-  }, []);
+  }, [refreshData]);
 
-  // Get a task by ID
+  // Get a task by ID directly from the database
   const getTaskById = useCallback(async (taskId: string): Promise<TaskSchema | null> => {
     try {
-      return await taskService.getTaskById(taskId);
+      log(`Getting task by ID: ${taskId}`, 'TaskContext.getTaskById', 'INFO');
+      
+      const result = storageService.findOne('tasks', '*', 'item_id = ?', [taskId]);
+      
+      if (!result) {
+        log(`No task found with ID: ${taskId}`, 'TaskContext.getTaskById', 'INFO');
+        return null;
+      }
+      
+      log('Found task in database', 'TaskContext.getTaskById', 'INFO', { variableName: 'result', value: result });
+      
+      // Convert to TaskSchema
+      return {
+        itemId: result.item_id,
+        name: result.name,
+        projectId: result.project_id,
+        isCompleted: !!result.is_completed,
+        isRunning: !!result.is_running,
+        isGrouped: !!result.is_grouped,
+        created: result.created,
+        lastUpdated: result.last_updated
+      };
     } catch (error) {
-      console.error('Failed to get task by ID:', error);
-      setError(error instanceof Error ? error : new Error('Failed to get task by ID'));
+      log('Failed to get task by ID', 'TaskContext.getTaskById', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
   }, []);
 
-  // Get time entries for a task
+  // Get time entries for a task directly from the database
   const getTimeEntriesForTask = useCallback(async (taskId: string): Promise<TimeEntrySchema[]> => {
     try {
-      return await taskService.getTimeEntriesForTask(taskId);
+      log(`Getting time entries for task: ${taskId}`, 'TaskContext.getTimeEntriesForTask', 'INFO');
+      
+      const results = storageService.find('time_entries', '*', 'task_id = ?', [taskId]);
+      
+      log('Found time entries', 'TaskContext.getTimeEntriesForTask', 'INFO', { variableName: 'results', value: results });
+      
+      // Convert to TimeEntrySchema[]
+      return results.map(row => ({
+        itemId: row.item_id,
+        taskId: row.task_id,
+        isRunning: !!row.is_running,
+        timeSpent: row.time_spent,
+        timeStarted: row.time_started,
+        timeEnded: row.time_ended,
+        created: row.created,
+        lastUpdated: row.last_updated
+      }));
     } catch (error) {
-      console.error('Failed to get time entries for task:', error);
-      setError(error instanceof Error ? error : new Error('Failed to get time entries'));
+      log('Failed to get time entries for task', 'TaskContext.getTimeEntriesForTask', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
   }, []);
@@ -149,120 +201,71 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Get total time for a task
   const getTaskTotalTime = useCallback(async (taskId: string): Promise<number> => {
     try {
-      return await taskService.getTaskTotalTime(taskId);
+      const entries = await getTimeEntriesForTask(taskId);
+      const totalTime = entries.reduce((total, entry) => total + (entry.timeSpent || 0), 0);
+      log(`Total time for task ${taskId}: ${totalTime}`, 'TaskContext.getTaskTotalTime', 'INFO');
+      return totalTime;
     } catch (error) {
-      console.error('Failed to get task total time:', error);
-      setError(error instanceof Error ? error : new Error('Failed to calculate task time'));
+      log('Failed to get task total time', 'TaskContext.getTaskTotalTime', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
-  }, []);
+  }, [getTimeEntriesForTask]);
 
   // Mark a task as completed
   const completeTask = useCallback(async (taskId: string): Promise<void> => {
     try {
-      await taskService.completeTask(taskId);
-      
-      // Update local state
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.itemId === taskId 
-            ? { 
-                ...task, 
-                isCompleted: true,
-                isRunning: false,
-                lastUpdated: Math.floor(Date.now() / 1000) 
-              } 
-            : task
-        )
-      );
+      await updateTask(taskId, {
+        isCompleted: true,
+        isRunning: false
+      });
     } catch (error) {
-      console.error('Failed to complete task:', error);
-      setError(error instanceof Error ? error : new Error('Failed to complete task'));
+      log('Failed to complete task', 'TaskContext.completeTask', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
-  }, []);
+  }, [updateTask]);
 
   // Reopen a completed task
   const reopenTask = useCallback(async (taskId: string): Promise<void> => {
     try {
-      await taskService.reopenTask(taskId);
-      
-      // Update local state
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.itemId === taskId 
-            ? { 
-                ...task, 
-                isCompleted: false,
-                lastUpdated: Math.floor(Date.now() / 1000) 
-              } 
-            : task
-        )
-      );
+      await updateTask(taskId, {
+        isCompleted: false
+      });
     } catch (error) {
-      console.error('Failed to reopen task:', error);
-      setError(error instanceof Error ? error : new Error('Failed to reopen task'));
+      log('Failed to reopen task', 'TaskContext.reopenTask', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
-  }, []);
+  }, [updateTask]);
 
   // Assign a task to a project
   const assignTaskToProject = useCallback(async (taskId: string, projectId: string): Promise<void> => {
     try {
-      await taskService.assignTaskToProject(taskId, projectId);
-      
-      // Update local state
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.itemId === taskId 
-            ? { 
-                ...task, 
-                projectId,
-                isGrouped: true,
-                lastUpdated: Math.floor(Date.now() / 1000) 
-              } 
-            : task
-        )
-      );
+      await updateTask(taskId, {
+        projectId,
+        isGrouped: true
+      });
     } catch (error) {
-      console.error('Failed to assign task to project:', error);
-      setError(error instanceof Error ? error : new Error('Failed to assign task to project'));
+      log('Failed to assign task to project', 'TaskContext.assignTaskToProject', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
-  }, []);
+  }, [updateTask]);
 
   // Remove a task from its project
   const unassignTaskFromProject = useCallback(async (taskId: string): Promise<void> => {
     try {
-      await taskService.unassignTaskFromProject(taskId);
-      
-      // Update local state
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.itemId === taskId 
-            ? { 
-                ...task, 
-                projectId: null,
-                isGrouped: false,
-                lastUpdated: Math.floor(Date.now() / 1000) 
-              } 
-            : task
-        )
-      );
+      await updateTask(taskId, {
+        projectId: null,
+        isGrouped: false
+      });
     } catch (error) {
-      console.error('Failed to unassign task from project:', error);
-      setError(error instanceof Error ? error : new Error('Failed to unassign task from project'));
+      log('Failed to unassign task from project', 'TaskContext.unassignTaskFromProject', 'ERROR', { variableName: 'error', value: error });
       throw error;
     }
-  }, []);
+  }, [updateTask]);
 
   return (
     <TaskContext.Provider
       value={{
-        tasks,
-        timeEntries,
-        isLoading,
-        error,
+        // Methods only, no duplicated state
         createTask,
         updateTask,
         deleteTask,
@@ -272,8 +275,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         completeTask,
         reopenTask,
         assignTaskToProject,
-        unassignTaskFromProject,
-        refreshTasks: loadTasks
+        unassignTaskFromProject
       }}
     >
       {children}
@@ -281,11 +283,3 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-// Custom hook to use the task context
-export const useTask = () => {
-  const context = useContext(TaskContext);
-  if (!context) {
-    throw new Error('useTask must be used within a TaskProvider');
-  }
-  return context;
-};

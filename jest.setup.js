@@ -30,6 +30,41 @@ jest.mock('react-native', () => {
   };
 });
 
+// Mock expo-sqlite
+jest.mock('expo-sqlite', () => {
+  // Mock SQLiteDatabase implementation
+  class MockSQLiteDatabase {
+    constructor(name) {
+      this.name = name;
+    }
+    
+    openSync() {
+      return this;
+    }
+    
+    closeSync() {
+      return true;
+    }
+    
+    runSync(query, params = []) {
+      return { rowsAffected: 1, insertId: 1 };
+    }
+    
+    getAllSync(query, params = []) {
+      return [];
+    }
+    
+    getFirstSync(query, params = []) {
+      return null;
+    }
+  }
+  
+  return {
+    openDatabase: jest.fn((name) => new MockSQLiteDatabase(name)),
+    openDatabaseSync: jest.fn((name) => new MockSQLiteDatabase(name))
+  };
+});
+
 // Mock react-native-css-interop
 jest.mock('react-native-css-interop', () => {
   const mockModule = {

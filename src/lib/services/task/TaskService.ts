@@ -1,6 +1,8 @@
-import { storageService } from '@services/storage/StorageService';
-import { generateUUID } from '@services/timer/uuid';
-import { TaskSchema, TimeEntrySchema, ProjectId } from '@types/entities';
+import { storageService } from '@lib/services/storage/StorageService';
+import { errorService } from '@lib/services/error/ErrorService';
+import { ErrorLevel } from '@def/error';
+import { generateUUID } from '@lib/util/uuid';
+import { TaskSchema, TimeEntrySchema, ProjectId } from '@def/entities';
 
 /**
  * TaskService provides business logic for task operations
@@ -59,8 +61,17 @@ export class TaskService {
         lastUpdated: now
       };
     } catch (error) {
-      console.error('Error creating task:', error);
-      throw new Error('Failed to create task');
+      const appError = errorService.logError(
+        error instanceof Error ? error : new Error(String(error)),
+        ErrorLevel.ERROR,
+        {
+          component: 'TaskService',
+          operation: 'createTask',
+          entityType: 'task',
+          input: { name, projectId }
+        }
+      );
+      throw appError;
     }
   }
 
@@ -87,8 +98,18 @@ export class TaskService {
 
       storageService.update('tasks', dbUpdates, 'item_id = ?', [taskId]);
     } catch (error) {
-      console.error('Error updating task:', error);
-      throw new Error('Failed to update task');
+      const appError = errorService.logError(
+        error instanceof Error ? error : new Error(String(error)),
+        ErrorLevel.ERROR,
+        {
+          component: 'TaskService',
+          operation: 'updateTask',
+          entityType: 'task',
+          entityId: taskId,
+          input: updates
+        }
+      );
+      throw appError;
     }
   }
 
@@ -104,8 +125,17 @@ export class TaskService {
       // Then delete the task itself
       storageService.delete('tasks', 'item_id = ?', [taskId]);
     } catch (error) {
-      console.error('Error deleting task:', error);
-      throw new Error('Failed to delete task');
+      const appError = errorService.logError(
+        error instanceof Error ? error : new Error(String(error)),
+        ErrorLevel.ERROR,
+        {
+          component: 'TaskService',
+          operation: 'deleteTask',
+          entityType: 'task',
+          entityId: taskId
+        }
+      );
+      throw appError;
     }
   }
 
@@ -131,8 +161,17 @@ export class TaskService {
         lastUpdated: result.last_updated
       };
     } catch (error) {
-      console.error('Error getting task by ID:', error);
-      throw new Error('Failed to get task');
+      const appError = errorService.logError(
+        error instanceof Error ? error : new Error(String(error)),
+        ErrorLevel.ERROR,
+        {
+          component: 'TaskService',
+          operation: 'getTaskById',
+          entityType: 'task',
+          entityId: taskId
+        }
+      );
+      throw appError;
     }
   }
 
@@ -155,8 +194,16 @@ export class TaskService {
         lastUpdated: row.last_updated
       }));
     } catch (error) {
-      console.error('Error getting all tasks:', error);
-      throw new Error('Failed to get tasks');
+      const appError = errorService.logError(
+        error instanceof Error ? error : new Error(String(error)),
+        ErrorLevel.ERROR,
+        {
+          component: 'TaskService',
+          operation: 'getAllTasks',
+          entityType: 'task'
+        }
+      );
+      throw appError;
     }
   }
 
@@ -180,8 +227,17 @@ export class TaskService {
         lastUpdated: row.last_updated
       }));
     } catch (error) {
-      console.error('Error getting tasks by project:', error);
-      throw new Error('Failed to get tasks for project');
+      const appError = errorService.logError(
+        error instanceof Error ? error : new Error(String(error)),
+        ErrorLevel.ERROR,
+        {
+          component: 'TaskService',
+          operation: 'getTasksByProject',
+          entityType: 'task',
+          input: { projectId }
+        }
+      );
+      throw appError;
     }
   }
 
@@ -205,8 +261,17 @@ export class TaskService {
         lastUpdated: row.last_updated
       }));
     } catch (error) {
-      console.error('Error getting time entries for task:', error);
-      throw new Error('Failed to get time entries');
+      const appError = errorService.logError(
+        error instanceof Error ? error : new Error(String(error)),
+        ErrorLevel.ERROR,
+        {
+          component: 'TaskService',
+          operation: 'getTimeEntriesForTask',
+          entityType: 'timeEntry',
+          input: { taskId }
+        }
+      );
+      throw appError;
     }
   }
 
@@ -235,8 +300,17 @@ export class TaskService {
         return total + entry.timeSpent;
       }, 0);
     } catch (error) {
-      console.error('Error calculating task total time:', error);
-      throw new Error('Failed to calculate task time');
+      const appError = errorService.logError(
+        error instanceof Error ? error : new Error(String(error)),
+        ErrorLevel.ERROR,
+        {
+          component: 'TaskService',
+          operation: 'getTaskTotalTime',
+          entityType: 'task',
+          entityId: taskId
+        }
+      );
+      throw appError;
     }
   }
 

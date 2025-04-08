@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useState, ReactNode } from 'react';
-import { timerService } from '../services/timer/TimerService';
-import { formatTime } from '../services/timer/time';
+import { timerService } from '@lib/services/timer/TimerService';
+import { formatTime } from '@lib/util/time/timeFormatters';
 import { TimerStatus, TimerData, TimerContextValue } from '../types/timer';
 
 // Create the context with a default value

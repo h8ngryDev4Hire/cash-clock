@@ -27,7 +27,7 @@ jest.mock('react-native-css-interop/src/runtime/jsx-runtime', () => ({
 }), { virtual: true });
 
 // Mock StorageService before importing modules that depend on it
-jest.mock('../../services/storage/StorageService', () => ({
+jest.mock('@lib/services/storage/StorageService', () => ({
   storageService: {
     initialize: jest.fn(),
     find: jest.fn(),
@@ -42,7 +42,7 @@ jest.mock('../../services/storage/StorageService', () => ({
 // Continue with imports after mocks are set up
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
-import { useStorageContext, StorageProvider } from '../StorageContext';
+import { StorageContext, StorageProvider } from '../StorageContext';
 import { TaskSchema, TimeEntrySchema, ProjectSchema } from '../../types/tasks';
 
 // Mock react-native-css-interop
@@ -65,6 +65,9 @@ describe('StorageContext', () => {
     jest.clearAllMocks();
     mockStorageService.initialize.mockResolvedValue(undefined);
     mockStorageService.find.mockResolvedValue([]);
+    mockStorageService.transaction.mockImplementation(async (callback) => {
+      await callback({ executeSql: jest.fn() });
+    });
   });
 
   it('should initialize and load data', async () => {
@@ -72,7 +75,7 @@ describe('StorageContext', () => {
       <StorageProvider>{children}</StorageProvider>
     );
 
-    const { result } = renderHook(() => useStorageContext(), { wrapper });
+    const { result } = renderHook(() => React.useContext(StorageContext), { wrapper });
 
     // Initial state
     expect(result.current.isLoading).toBe(true);
@@ -99,7 +102,7 @@ describe('StorageContext', () => {
       <StorageProvider>{children}</StorageProvider>
     );
 
-    const { result } = renderHook(() => useStorageContext(), { wrapper });
+    const { result } = renderHook(() => React.useContext(StorageContext), { wrapper });
 
     const mockData = {
       name: 'Test Task',
@@ -132,7 +135,7 @@ describe('StorageContext', () => {
       <StorageProvider>{children}</StorageProvider>
     );
 
-    const { result } = renderHook(() => useStorageContext(), { wrapper });
+    const { result } = renderHook(() => React.useContext(StorageContext), { wrapper });
 
     const mockUpdates = {
       name: 'Updated Task',
@@ -161,13 +164,7 @@ describe('StorageContext', () => {
       <StorageProvider>{children}</StorageProvider>
     );
 
-    const { result } = renderHook(() => useStorageContext(), { wrapper });
-
-    mockStorageService.transaction.mockImplementation(async (callback: (tx: { executeSql: jest.Mock }) => Promise<void>) => {
-      await callback({
-        executeSql: jest.fn(),
-      });
-    });
+    const { result } = renderHook(() => React.useContext(StorageContext), { wrapper });
 
     await act(async () => {
       await result.current.deleteEntity('tasks', 'test_id');
@@ -181,7 +178,7 @@ describe('StorageContext', () => {
       <StorageProvider>{children}</StorageProvider>
     );
 
-    const { result } = renderHook(() => useStorageContext(), { wrapper });
+    const { result } = renderHook(() => React.useContext(StorageContext), { wrapper });
 
     const mockEntity = {
       item_id: 'test_id',
@@ -217,7 +214,7 @@ describe('StorageContext', () => {
       <StorageProvider>{children}</StorageProvider>
     );
 
-    const { result } = renderHook(() => useStorageContext(), { wrapper });
+    const { result } = renderHook(() => React.useContext(StorageContext), { wrapper });
 
     const mockEntities = [
       {

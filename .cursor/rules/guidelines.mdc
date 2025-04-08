@@ -1,0 +1,33 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+
+
+
+## Overview
+
+This file will serve as guidelines for best practices when making changes to the codebase. refer to this file to maintain consistency in your work.
+initions
+
+
+## Coding Standards
+
+- Use TypeScript for type safety
+- Follow a consistent naming convention
+- Document complex logic with comments
+
+## GUIDELINES
+
+- You will always be switching between 2 modes, chat mode, and code mode.
+- Always explain what you are going to do 1st before making code changes
+- Review the codebase after major changes are made to make more informed decisions.
+- Always ask for clarification before shifting to coding mode.
+- Only generate code that provides functionality for the users request. Do not generate anything outside of this (meaning do not add complexity).
+
+
+- You can @ files here
+- You can use markdown but dont have to

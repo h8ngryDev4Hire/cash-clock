@@ -1,13 +1,58 @@
-import { useCallback } from 'react';
-import { ProjectSchema } from '../types/entities';
-import { useStorageContext } from '../context/StorageContext';
+import { useCallback, useContext, useMemo } from 'react';
+import { ProjectSchema, TaskSchema } from '@def/entities';
+import { StorageContext } from '@context/StorageContext';
+import { transformProjectSchemaToModel, enhanceProjectWithStats, ProjectWithStats } from '@lib/util/project/projectTransformers';
+import { getDefaultColor } from '@lib/util/project/projectColors';
+import { Project } from '@def/core';
 
 export const useProject = () => {
-  const storage = useStorageContext();
+  const storage = useContext(StorageContext);
+  
+  if (!storage) {
+    throw new Error('useProject must be used within a StorageProvider');
+  }
 
-  const createProject = useCallback(async (project: Omit<ProjectSchema, 'itemId' | 'created' | 'lastUpdated'>) => {
+  /**
+   * Transform all projects with stats
+   */
+  const projectsWithStats = useMemo<ProjectWithStats[]>(() => {
+    return storage.projects.map(project => {
+      const model = transformProjectSchemaToModel(project);
+      return enhanceProjectWithStats(model, storage.tasks, storage.timeEntries);
+    });
+  }, [storage.projects, storage.tasks, storage.timeEntries]);
+
+  /**
+   * Get all projects
+   */
+  const getAllProjects = useCallback(() => {
+    return projectsWithStats;
+  }, [projectsWithStats]);
+
+  /**
+   * Get a project by ID
+   */
+  const getProjectById = useCallback((projectId: string) => {
+    return projectsWithStats.find(project => project.id === projectId);
+  }, [projectsWithStats]);
+
+  /**
+   * Create a new project
+   */
+  const createProject = useCallback(async (
+    data: {
+      name: string;
+      description?: string;
+      color?: string;
+    }
+  ) => {
+    // Set default color if not provided
+    const projectColor = data.color || getDefaultColor().id;
+    
     const dbData = {
-      name: project.name
+      name: data.name,
+      description: data.description || '',
+      color: projectColor
     };
 
     const transform = (dbData: any): ProjectSchema => ({
@@ -20,30 +65,110 @@ export const useProject = () => {
     return storage.createEntity<ProjectSchema>('projects', dbData, transform);
   }, [storage]);
 
-  const updateProject = useCallback(async (itemId: string, updates: Partial<Omit<ProjectSchema, 'itemId' | 'created' | 'lastUpdated'>>) => {
-    const dbUpdates: Partial<Omit<ProjectSchema, 'itemId' | 'created' | 'lastUpdated'>> = {};
+  /**
+   * Update a project
+   */
+  const updateProject = useCallback(async (
+    projectId: string, 
+    updates: {
+      name?: string;
+      description?: string;
+      color?: string;
+    }
+  ) => {
+    const dbUpdates: Record<string, any> = {};
     
     if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.color !== undefined) dbUpdates.color = updates.color;
 
-    await storage.updateEntity<ProjectSchema>('projects', itemId, dbUpdates);
+    await storage.updateEntity<ProjectSchema>('projects', projectId, dbUpdates);
   }, [storage]);
 
-  const deleteProject = useCallback(async (itemId: string) => {
-    await storage.deleteEntity('projects', itemId, {
-      cascade: [
-        { table: 'tasks', foreignKey: 'project_id' }
-      ]
-    });
+  /**
+   * Delete a project (tasks will be unlinked)
+   */
+  const deleteProject = useCallback(async (projectId: string) => {
+    // Get all tasks for this project
+    const projectTasks = storage.tasks.filter(task => task.projectId === projectId);
+    
+    // Unlink tasks from project before deleting
+    for (const task of projectTasks) {
+      await storage.updateEntity<TaskSchema>(
+        'tasks', 
+        task.itemId, 
+        { projectId: null }
+      );
+    }
+
+    // Now delete the project
+    await storage.deleteEntity('projects', projectId);
+  }, [storage]);
+
+  /**
+   * Get all tasks for a project
+   */
+  const getProjectTasks = useCallback((projectId: string) => {
+    return storage.tasks
+      .filter(task => task.projectId === projectId)
+      .map(task => ({
+        id: task.itemId,
+        name: task.name,
+        isCompleted: task.isCompleted,
+        isRunning: task.isRunning,
+        createdAt: task.created,
+        updatedAt: task.lastUpdated,
+        // Calculate total time
+        totalTime: task.timeEntries?.reduce((total, entry) => {
+          if (entry.isRunning) {
+            const now = Math.floor(Date.now() / 1000);
+            return total + (now - entry.timeStarted);
+          }
+          return total + entry.timeSpent;
+        }, 0) || 0
+      }));
+  }, [storage.tasks]);
+
+  /**
+   * Assign a task to a project
+   */
+  const assignTaskToProject = useCallback(async (taskId: string, projectId: string) => {
+    await storage.updateEntity<TaskSchema>('tasks', taskId, { projectId });
+  }, [storage]);
+
+  /**
+   * Remove a task from a project
+   */
+  const removeTaskFromProject = useCallback(async (taskId: string) => {
+    await storage.updateEntity<TaskSchema>('tasks', taskId, { projectId: null });
+  }, [storage]);
+
+  /**
+   * Move multiple tasks to a different project
+   */
+  const moveTasksBetweenProjects = useCallback(async (taskIds: string[], newProjectId: string | null) => {
+    for (const taskId of taskIds) {
+      await storage.updateEntity<TaskSchema>('tasks', taskId, { projectId: newProjectId });
+    }
   }, [storage]);
 
   return {
     // Data
     projects: storage.projects,
+    projectsWithStats,
     
-    // Operations
+    // Basic CRUD operations
+    getAllProjects,
+    getProjectById,
     createProject,
     updateProject,
     deleteProject,
+    
+    // Task relationship operations
+    getProjectTasks,
+    assignTaskToProject,
+    removeTaskFromProject,
+    moveTasksBetweenProjects,
     
     // Loading and error states
     isLoading: storage.isLoading,

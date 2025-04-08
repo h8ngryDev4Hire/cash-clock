@@ -1,7 +1,8 @@
 import { storageService } from '../storage/StorageService';
-import { generateUUID } from './uuid';
-import { millisecondsToSeconds, calculateElapsedTime } from './time';
-import { TimerStatus, TimerData } from '../../types/timer';
+import { generateUUID } from '@lib/util/uuid';
+import { millisecondsToSeconds, calculateElapsedTime } from '@lib/util/time/timeCalculations';
+import { TimerStatus, TimerData } from '@def/timer';
+import { log } from '@lib/util/debugging/logging';
 
 // Table name for timer state in SQLite
 const TIMER_STATE_TABLE = 'settings';
@@ -78,7 +79,7 @@ export class TimerService {
         [taskId]
       );
     } catch (error) {
-      console.error('Error updating task running state:', error);
+      log('Error updating task running state', 'TimerService.startTimer', 'ERROR', { variableName: 'error', value: error });
     }
     
     this.saveTimerState();
@@ -131,7 +132,7 @@ export class TimerService {
           [this.timer.taskId]
         );
       } catch (error) {
-        console.error('Error updating task running state:', error);
+        log('Error updating task running state', 'TimerService.resumeTimer', 'ERROR', { variableName: 'error', value: error });
       }
     }
     
@@ -291,7 +292,9 @@ export class TimerService {
   }
   
   /**
-   * Private method to save a time entry to storage
+   * Private method to save a time entry for a task
+   * @param taskId The task ID to save the entry for
+   * @param elapsedTime The elapsed time in milliseconds
    */
   private saveTimeEntry(taskId: string, elapsedTime: number): void {
     // Convert milliseconds to seconds for storage
@@ -324,9 +327,9 @@ export class TimerService {
         [taskId]
       );
       
-      console.log('Time entry saved:', timeEntry);
+      log('Time entry saved', 'TimerService.saveTimeEntry', 'INFO', { variableName: 'timeEntry', value: timeEntry });
     } catch (error) {
-      console.error('Error saving time entry:', error);
+      log('Error saving time entry', 'TimerService.saveTimeEntry', 'ERROR', { variableName: 'error', value: error });
     }
   }
   
@@ -372,7 +375,7 @@ export class TimerService {
         });
       }
     } catch (error) {
-      console.error('Error saving timer state:', error);
+      log('Error saving timer state', 'TimerService.saveTimerState', 'ERROR', { variableName: 'error', value: error });
     }
   }
   
@@ -415,7 +418,7 @@ export class TimerService {
         }
       }
     } catch (error) {
-      console.error('Error loading timer state:', error);
+      log('Error loading timer state', 'TimerService.loadTimerState', 'ERROR', { variableName: 'error', value: error });
       // Keep using default state if we can't load
     }
   }
@@ -444,7 +447,7 @@ export class TimerService {
       
       this.storageInitialized = true;
     } catch (error) {
-      console.error('Error initializing storage for timer state:', error);
+      log('Error initializing storage for timer state', 'TimerService.initializeStorage', 'ERROR', { variableName: 'error', value: error });
       // Continue with in-memory only as fallback
     }
   }
@@ -457,7 +460,7 @@ export class TimerService {
    */
   public registerBackgroundHandler(handler: unknown): void {
     // This is a placeholder for future integration with native modules
-    console.log('Background handler registered - not implemented yet');
+    log('Background handler registered - not implemented yet', 'TimerService.registerBackgroundHandler', 'INFO');
   }
 }
 

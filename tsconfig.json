@@ -18,11 +18,11 @@
       "@hooks/*": [
         "./src/hooks/*"
       ],
-      "@types/*": [
+      "@def/*": [
         "./src/types/*"
       ],
-      "@services/*": [
-        "./src/services/*"
+      "@lib/*": [
+        "./src/lib/*"
       ]
     }
   },

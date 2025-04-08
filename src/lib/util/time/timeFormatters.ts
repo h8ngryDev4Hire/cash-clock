@@ -1,4 +1,19 @@
 /**
+ * Time formatting utilities for consistent display across the application
+ */
+
+/**
+ * Formats elapsed time in seconds to MM:SS format
+ * @param seconds Time in seconds
+ * @returns Formatted time string (MM:SS)
+ */
+export function formatElapsedTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+/**
  * Formats milliseconds into a human-readable time string
  * @param milliseconds Time in milliseconds
  * @param showMilliseconds Whether to include milliseconds in the output
@@ -29,20 +44,6 @@ export function formatTime(milliseconds: number, showMilliseconds: boolean = fal
 }
 
 /**
- * Convert seconds to milliseconds
- */
-export function secondsToMilliseconds(seconds: number): number {
-  return seconds * 1000;
-}
-
-/**
- * Convert milliseconds to seconds
- */
-export function millisecondsToSeconds(milliseconds: number): number {
-  return Math.floor(milliseconds / 1000);
-}
-
-/**
  * Format seconds as a duration string
  * @param seconds Time in seconds
  * @returns Formatted duration string (e.g., "2h 15m" or "45m")
@@ -63,16 +64,47 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
- * Calculate elapsed time between a start timestamp and now
- * (or between start and end if end is provided)
- * 
- * @param startTime Start timestamp in milliseconds
- * @param endTime Optional end timestamp in milliseconds
- * @returns Elapsed time in milliseconds
+ * Format relative time (e.g., "2 hours ago", "5 minutes ago")
+ * @param timestamp Unix timestamp in milliseconds
+ * @returns Formatted relative time string
  */
-export function calculateElapsedTime(startTime: number, endTime?: number): number {
-  if (!startTime) return 0;
+export function formatRelativeTime(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
   
-  const end = endTime || Date.now();
-  return end - startTime;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (days > 0) {
+    return `${days}d ago`;
+  }
+  if (hours > 0) {
+    return `${hours}h ago`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ago`;
+  }
+  return 'just now';
+}
+
+/**
+ * Format task duration for display
+ * @param totalTime Total time in seconds
+ * @returns Formatted duration string
+ */
+export function formatTaskDuration(totalTime: number): string {
+  if (totalTime < 60) {
+    return `${totalTime}s`;
+  }
+  
+  const hours = Math.floor(totalTime / 3600);
+  const minutes = Math.floor((totalTime % 3600) / 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes > 0 ? `${minutes}m` : ''}`;
+  }
+  
+  return `${minutes}m`;
 } 

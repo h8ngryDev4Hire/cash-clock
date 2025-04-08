@@ -8,7 +8,11 @@ import TimerPlayer from "@components/timer/TimerPlayer";
 import { useTimer } from "@hooks/useTimer";
 import useTask from "@hooks/useTask";
 import "../../global.css"
-import { millisecondsToSeconds } from "@services/timer/time";
+import { millisecondsToSeconds } from "@lib/util/time/timeCalculations";
+import { GlobalErrorHandler } from "@components/ui/GlobalErrorHandler";
+import { useError } from "@hooks/useError";
+import { ErrorLevel } from "@def/error";
+import { log } from "@lib/util/debugging/logging";
 
 // Wrapper component for the timer player to access the timer context
 const TimerPlayerContainer = () => {
@@ -17,6 +21,9 @@ const TimerPlayerContainer = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [taskName, setTaskName] = useState("Unnamed Task");
+  
+  // Initialize error handling - use global errors since this is a persistent UI component
+  const { handleError, setIsLoading, clearError } = useError('TimerPlayer', false); 
   
   // Determine if timer should be visible
   const isTimerActive = isRunning || isPaused;
@@ -27,9 +34,22 @@ const TimerPlayerContainer = () => {
   useEffect(() => {
     const fetchTaskName = async () => {
       if (taskId) {
-        const taskData = await getTaskWithTime(taskId);
-        if (taskData) {
-          setTaskName(taskData.name);
+        try {
+          setIsLoading(true);
+          clearError();
+          
+          const taskData = await getTaskWithTime(taskId);
+          if (taskData) {
+            setTaskName(taskData.name);
+          }
+          
+          setIsLoading(false);
+        } catch (err) {
+          // Use global error handling for task loading failures
+          handleError(err, ErrorLevel.ERROR, { 
+            operation: 'fetchTaskName', 
+            entityId: taskId 
+          }, true);
         }
       }
     };
@@ -44,12 +64,28 @@ const TimerPlayerContainer = () => {
   const handleStartNewTask = async (name: string) => {
     if (name.trim()) {
       try {
+        setIsLoading(true);
+        clearError();
+        
         // Create a new task and start the timer for it
         const newTask = await createTask(name.trim());
         startTimer(newTask.id);
-      } catch (error) {
-        console.error("Failed to create task:", error);
+        
+        setIsLoading(false);
+      } catch (err) {
+        // Use global error handling for quick task creation
+        handleError(err, ErrorLevel.ERROR, { 
+          operation: 'createQuickTask', 
+          input: { name } 
+        }, true);
       }
+    } else {
+      handleError(
+        new Error('Task name cannot be empty'),
+        ErrorLevel.WARNING,
+        { operation: 'validateQuickTaskName' },
+        true // Set as global error
+      );
     }
   };
   
@@ -118,6 +154,8 @@ export default function RootLayout() {
     <GestureHandlerRootView className="flex-1">
       <AppProvider>
         <View className="flex-1">
+          {/* Add GlobalErrorHandler here for app-wide error handling */}
+          <GlobalErrorHandler />
 
           {/* Main content area */}
           <View className="flex-1">
@@ -141,7 +179,7 @@ export default function RootLayout() {
               <TouchableOpacity
                 key={item.name}
                 onPress={() => {
-                  console.log('[Navigation] Tab pressed:', item.title);
+                  log('Tab pressed: ' + item.title, 'Navigation', 'INFO');
                   router.replace(item.path);
                 }}
                 className="items-center px-3 py-1"

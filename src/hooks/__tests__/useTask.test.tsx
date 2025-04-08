@@ -1,12 +1,17 @@
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useTask } from '../useTask';
-import { useStorageContext } from '../../context/StorageContext';
+import { StorageContext } from '../../context/StorageContext';
+import { TaskContext } from '../../context/TaskContext';
 
-// Mock the StorageContext
-jest.mock('../../context/StorageContext', () => ({
-  useStorageContext: jest.fn()
-}));
+// Mock React.useContext
+jest.mock('react', () => {
+  const originalReact = jest.requireActual('react');
+  return {
+    ...originalReact,
+    useContext: jest.fn()
+  };
+});
 
 describe('useTask', () => {
   const mockStorageContext = {
@@ -24,9 +29,30 @@ describe('useTask', () => {
     findEntities: jest.fn()
   };
 
+  const mockTaskContext = {
+    createTask: jest.fn(),
+    updateTask: jest.fn(),
+    deleteTask: jest.fn(),
+    getTaskById: jest.fn(),
+    getTimeEntriesForTask: jest.fn(),
+    getTaskTotalTime: jest.fn(),
+    completeTask: jest.fn(),
+    reopenTask: jest.fn(),
+    assignTaskToProject: jest.fn(),
+    unassignTaskFromProject: jest.fn()
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    (useStorageContext as jest.Mock).mockReturnValue(mockStorageContext);
+    (React.useContext as jest.Mock).mockImplementation((context) => {
+      if (context === StorageContext) {
+        return mockStorageContext;
+      }
+      if (context === TaskContext) {
+        return mockTaskContext;
+      }
+      return undefined;
+    });
   });
 
   it('should return initial state', () => {
@@ -35,47 +61,28 @@ describe('useTask', () => {
     expect(result.current.tasks).toEqual([]);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
-    expect(result.current.lastUpdated).toBeNull();
   });
 
   describe('createTask', () => {
     it('should create a new task', async () => {
-      const { result } = renderHook(() => useTask());
-
-      const newTask = {
+      mockTaskContext.createTask.mockResolvedValue({
+        itemId: 'test_id',
         name: 'Test Task',
         isRunning: false,
         isGrouped: false,
         isCompleted: false,
-        projectId: null
-      };
-
-      const mockCreatedTask = {
-        itemId: 'test_id',
-        ...newTask,
+        projectId: null,
         created: 1000,
-        lastUpdated: 1000,
-        timeEntries: [],
-        getTotalTimeSpent: expect.any(Function)
-      };
-
-      (mockStorageContext.createEntity as jest.Mock).mockResolvedValue(mockCreatedTask);
-
-      await act(async () => {
-        await result.current.createTask(newTask);
+        lastUpdated: 1000
       });
 
-      expect(mockStorageContext.createEntity).toHaveBeenCalledWith(
-        'tasks',
-        expect.objectContaining({
-          name: newTask.name,
-          isRunning: newTask.isRunning,
-          isGrouped: newTask.isGrouped,
-          isCompleted: newTask.isCompleted,
-          projectId: newTask.projectId
-        }),
-        expect.any(Function)
-      );
+      const { result } = renderHook(() => useTask());
+
+      await act(async () => {
+        await result.current.createTask('Test Task');
+      });
+
+      expect(mockTaskContext.createTask).toHaveBeenCalledWith('Test Task', undefined);
     });
   });
 
@@ -93,16 +100,12 @@ describe('useTask', () => {
         await result.current.updateTask(itemId, updates);
       });
 
-      expect(mockStorageContext.updateEntity).toHaveBeenCalledWith(
-        'tasks',
-        itemId,
-        expect.objectContaining(updates)
-      );
+      expect(mockTaskContext.updateTask).toHaveBeenCalledWith(itemId, updates);
     });
   });
 
   describe('deleteTask', () => {
-    it('should delete a task and its time entries', async () => {
+    it('should delete a task', async () => {
       const { result } = renderHook(() => useTask());
 
       const itemId = 'test_id';
@@ -111,20 +114,12 @@ describe('useTask', () => {
         await result.current.deleteTask(itemId);
       });
 
-      expect(mockStorageContext.deleteEntity).toHaveBeenCalledWith(
-        'tasks',
-        itemId,
-        expect.objectContaining({
-          cascade: [
-            { table: 'time_entries', foreignKey: 'task_id' }
-          ]
-        })
-      );
+      expect(mockTaskContext.deleteTask).toHaveBeenCalledWith(itemId);
     });
   });
 
-  describe('getTaskById', () => {
-    it('should return a task by id', () => {
+  describe('getTaskWithTime', () => {
+    it('should return a task with its total time', async () => {
       const mockTask = {
         itemId: 'test_id',
         name: 'Test Task',
@@ -133,27 +128,35 @@ describe('useTask', () => {
         isCompleted: false,
         projectId: null,
         created: 1000,
-        lastUpdated: 1000,
-        timeEntries: [],
-        getTotalTimeSpent: () => 0
+        lastUpdated: 1000
       };
-
-      (useStorageContext as jest.Mock).mockReturnValue({
-        ...mockStorageContext,
-        tasks: [mockTask]
-      });
-
+      
+      mockTaskContext.getTaskById.mockResolvedValue(mockTask);
+      mockTaskContext.getTaskTotalTime.mockResolvedValue(3600); // 1 hour in seconds
+      
       const { result } = renderHook(() => useTask());
 
-      const task = result.current.getTaskById('test_id');
-      expect(task).toEqual(mockTask);
+      let task;
+      await act(async () => {
+        task = await result.current.getTaskWithTime('test_id');
+      });
+      
+      expect(mockTaskContext.getTaskById).toHaveBeenCalledWith('test_id');
+      expect(mockTaskContext.getTaskTotalTime).toHaveBeenCalledWith('test_id');
+      expect(task).toHaveProperty('totalTime', 3600);
     });
 
-    it('should return undefined for non-existent task', () => {
+    it('should return null for non-existent task', async () => {
+      mockTaskContext.getTaskById.mockResolvedValue(null);
+      
       const { result } = renderHook(() => useTask());
 
-      const task = result.current.getTaskById('non_existent');
-      expect(task).toBeUndefined();
+      let task;
+      await act(async () => {
+        task = await result.current.getTaskWithTime('non_existent');
+      });
+      
+      expect(task).toBeNull();
     });
   });
 }); 

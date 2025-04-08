@@ -27,7 +27,7 @@ jest.mock('react-native-css-interop/src/runtime/jsx-runtime', () => ({
 }), { virtual: true });
 
 // Mock StorageService before importing modules that depend on it
-jest.mock('../../services/storage/StorageService', () => ({
+jest.mock('@lib/services/storage/StorageService', () => ({
   storageService: {
     initialize: jest.fn(),
     find: jest.fn(),
@@ -43,8 +43,17 @@ jest.mock('../../services/storage/StorageService', () => ({
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useTimeEntry } from '../useTimeEntry';
-import { useStorageContext } from '../../context/StorageContext';
+import { StorageContext } from '../../context/StorageContext';
 import { TimeEntrySchema } from '../../types/entities';
+
+// Mock React.useContext
+jest.mock('react', () => {
+  const originalReact = jest.requireActual('react');
+  return {
+    ...originalReact,
+    useContext: jest.fn()
+  };
+});
 
 // Mock the StorageContext
 jest.mock('../../context/StorageContext');
@@ -64,19 +73,28 @@ jest.mock('react-native-css-interop', () => ({
 
 describe('useTimeEntry', () => {
   const mockStorageContext = {
-    timeEntries: [] as TimeEntrySchema[],
+    tasks: [],
+    timeEntries: [],
+    projects: [],
+    isLoading: false,
+    error: null,
+    lastUpdated: null,
+    refreshData: jest.fn(),
     createEntity: jest.fn(),
     updateEntity: jest.fn(),
     deleteEntity: jest.fn(),
-    isLoading: false,
-    error: null,
-    lastUpdated: new Date().getTime(),
-    refreshData: jest.fn(),
+    findEntity: jest.fn(),
+    findEntities: jest.fn()
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useStorageContext as jest.Mock).mockReturnValue(mockStorageContext);
+    (React.useContext as jest.Mock).mockImplementation((context) => {
+      if (context === StorageContext) {
+        return mockStorageContext;
+      }
+      return undefined;
+    });
     mockStorageContext.createEntity.mockImplementation(() => Promise.resolve());
     mockStorageContext.updateEntity.mockImplementation(() => Promise.resolve());
     mockStorageContext.deleteEntity.mockImplementation(() => Promise.resolve());

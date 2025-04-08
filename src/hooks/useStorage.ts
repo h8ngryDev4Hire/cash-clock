@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { useStorageContext } from '../context/StorageContext';
+import { useCallback, useContext } from 'react';
+import { StorageContext } from '../context/StorageContext';
 import { TaskSchema, TimeEntrySchema, ProjectSchema } from '../types/entities';
 import { EntityType, EntityOperations, StorageHookResult } from '../types/storage';
 
@@ -10,6 +10,12 @@ import { EntityType, EntityOperations, StorageHookResult } from '../types/storag
 export function useStorage<T = TaskSchema | TimeEntrySchema | ProjectSchema>(
   entityType?: EntityType
 ): StorageHookResult<T> {
+  const context = useContext(StorageContext);
+  
+  if (context === undefined) {
+    throw new Error('useStorage must be used within a StorageProvider');
+  }
+  
   const { 
     tasks, timeEntries, projects,
     isLoading, error, lastUpdated, refreshData,
@@ -17,7 +23,7 @@ export function useStorage<T = TaskSchema | TimeEntrySchema | ProjectSchema>(
     createTimeEntry, updateTimeEntry, deleteTimeEntry,
     createProject, updateProject, deleteProject,
     getTaskById, getTimeEntriesForTask
-  } = useStorageContext();
+  } = context;
   
   // Task operations
   const taskOperations: EntityOperations<TaskSchema> = {
