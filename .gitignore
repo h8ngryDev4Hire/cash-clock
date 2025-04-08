@@ -1,7 +1,8 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# agent
+# misc 
 agent/
+.cursor/
 
 # dependencies
 node_modules/
@@ -42,3 +43,4 @@ app-example
 
 # vscode
 .vscode/
+
