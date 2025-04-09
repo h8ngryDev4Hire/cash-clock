@@ -66,7 +66,7 @@ export class MigrationService {
         );
       `, []);
       
-      log('Initialized migration tracking', 'MigrationService', 'INFO');
+      log('Initialized migration tracking', 'MigrationService', 'initialize', 'INFO');
       this.isInitialized = true;
       return true;
     } catch (error) {
@@ -88,7 +88,7 @@ export class MigrationService {
   public async syncSchemas(): Promise<boolean> {
     // Prevent concurrent migrations
     if (this.isMigrating) {
-      log('Migration already in progress, skipping duplicate call', 'MigrationService', 'DEBUG');
+      log('Migration already in progress, skipping duplicate call', 'MigrationService', 'syncSchemas', 'DEBUG');
       return true;
     }
     
@@ -106,14 +106,14 @@ export class MigrationService {
       
       // Process each entity schema
       for (const [entityName, schemaDefinition] of Object.entries(this.schemaDefinitions)) {
-        log('Checking schema for ' + entityName + '...', 'MigrationService', 'DEBUG');
+        log('Checking schema for ' + entityName + '...', 'MigrationService', 'syncSchemas', 'DEBUG');
         
         try {
           // Check if table exists first
           const tableExists = await this.tableExists(entityName);
           
           if (!tableExists) {
-            log('Table ' + entityName + ' doesn\'t exist yet, skipping migration', 'MigrationService', 'VERBOSE');
+            log('Table ' + entityName + ' doesn\'t exist yet, skipping migration', 'MigrationService', 'syncSchemas', 'VERBOSE');
             continue; // Skip migration for non-existent tables, they'll be created by the schema init
           }
           
@@ -121,7 +121,7 @@ export class MigrationService {
           const dbSchema = await this.getTableSchema(entityName);
           
           if (!dbSchema) {
-            log('Failed to get schema for ' + entityName, 'MigrationService', 'ERROR');
+            log('Failed to get schema for ' + entityName, 'MigrationService', 'syncSchemas', 'ERROR');
             success = false;
             continue;
           }
@@ -130,8 +130,8 @@ export class MigrationService {
           const codeSchema = this.parseSchemaDefinition(schemaDefinition, entityName);
           
           // Log the schemas for debugging
-          log('Database schema for ' + entityName + ': ' + JSON.stringify(dbSchema.columns.map(c => c.name)), 'MigrationService', 'VERBOSE');
-          log('Code schema for ' + entityName + ': ' + JSON.stringify(codeSchema.columns.map(c => c.name)), 'MigrationService', 'VERBOSE');
+          log('Database schema for ' + entityName + ': ' + JSON.stringify(dbSchema.columns.map(c => c.name)), 'MigrationService', 'syncSchemas', 'VERBOSE');
+          log('Code schema for ' + entityName + ': ' + JSON.stringify(codeSchema.columns.map(c => c.name)), 'MigrationService', 'syncSchemas', 'VERBOSE');
           
           // Generate schema hash for comparison
           const codeSchemaHash = this.generateSchemaHash(codeSchema);
@@ -140,31 +140,31 @@ export class MigrationService {
           const storedVersion = await this.getStoredSchemaVersion(entityName);
           
           if (!storedVersion || storedVersion.schema_hash !== codeSchemaHash) {
-            log('Schema changes detected for ' + entityName, 'MigrationService', 'INFO');
+            log('Schema changes detected for ' + entityName, 'MigrationService', 'syncSchemas', 'INFO');
             
             // Table exists, determine what changes are needed
             const schemaChanges = this.detectSchemaChanges(dbSchema, codeSchema);
             
             if (schemaChanges.length > 0) {
               log('Found ' + schemaChanges.length + ' changes for ' + entityName + ': ' + 
-                        JSON.stringify(schemaChanges.map(c => `${c.type} ${c.column}`)), 'MigrationService', 'INFO');
+                        JSON.stringify(schemaChanges.map(c => `${c.type} ${c.column}`)), 'MigrationService', 'syncSchemas', 'INFO');
               
               // Apply schema changes
               const migrationSuccess = await this.applySchemaChanges(entityName, schemaChanges);
               
               if (!migrationSuccess) {
-                log('Failed to migrate schema for ' + entityName, 'MigrationService', 'ERROR');
+                log('Failed to migrate schema for ' + entityName, 'MigrationService', 'syncSchemas', 'ERROR');
                 success = false;
                 continue;
               }
             } else {
-              log('No changes to apply for ' + entityName, 'MigrationService', 'DEBUG');
+              log('No changes to apply for ' + entityName, 'MigrationService', 'syncSchemas', 'DEBUG');
             }
             
             try {
               // Update schema version record even if no changes (could be different hash calculation)
               await this.updateSchemaVersion(entityName, codeSchemaHash);
-              log('Schema version for ' + entityName + ' updated successfully', 'MigrationService', 'INFO');
+              log('Schema version for ' + entityName + ' updated successfully', 'MigrationService', 'syncSchemas', 'INFO');
             } catch (versionError) {
               // If this fails, log it but don't fail the whole migration
               errorService.logError(
@@ -176,14 +176,14 @@ export class MigrationService {
                   entityType: entityName
                 }
               );
-              log('Warning: Unable to update schema version for ' + entityName, 'MigrationService', 'WARNING');
+              log('Warning: Unable to update schema version for ' + entityName, 'MigrationService', 'syncSchemas', 'WARNING');
             }
           } else {
-            log('Schema for ' + entityName + ' is up to date', 'MigrationService', 'DEBUG');
+            log('Schema for ' + entityName + ' is up to date', 'MigrationService', 'syncSchemas', 'DEBUG');
           }
         } catch (entityError) {
           // Log error but continue with other entities
-          log('Error processing ' + entityName + ': ' + entityError, 'MigrationService', 'ERROR', { variableName: 'entityError', value: entityError });
+          log('Error processing ' + entityName + ': ' + entityError, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'entityError', value: entityError });
           errorService.logError(
             entityError instanceof Error ? entityError : new Error(String(entityError)),
             ErrorLevel.ERROR,
@@ -200,7 +200,7 @@ export class MigrationService {
       this.isMigrating = false;
       return success;
     } catch (error) {
-      log('Error in syncSchemas: ' + error, 'MigrationService', 'ERROR', { variableName: 'error', value: error });
+      log('Error in syncSchemas: ' + error, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'error', value: error });
       errorService.logError(
         error instanceof Error ? error : new Error(String(error)),
         ErrorLevel.ERROR,
@@ -222,21 +222,21 @@ export class MigrationService {
       // Make sure table exists
       const tableExists = await this.tableExists(tableName);
       if (!tableExists) {
-        log('Table ' + tableName + ' doesn\'t exist, can\'t get schema', 'MigrationService', 'VERBOSE');
+        log('Table ' + tableName + ' doesn\'t exist, can\'t get schema', 'MigrationService', 'syncSchemas', 'VERBOSE');
         return null;
       }
       
       // Try using the raw database object for more direct access if available
       if (this.storageService && (this.storageService as any).database) {
         try {
-          log('Using direct database access for PRAGMA table_info(' + tableName + ')', 'MigrationService', 'VERBOSE');
+          log('Using direct database access for PRAGMA table_info(' + tableName + ')', 'MigrationService', 'syncSchemas', 'VERBOSE');
           
           // Use the raw database object to get table info
           const db = (this.storageService as any).database;
           const columnData = db.getAllSync(`PRAGMA table_info(${tableName})`, []);
           
           if (columnData && columnData.length > 0) {
-            log('Direct access found ' + columnData.length + ' columns for ' + tableName + ': ' + columnData.map((c: SQLiteColumn) => c.name).join(', '), 'MigrationService', 'VERBOSE');
+            log('Direct access found ' + columnData.length + ' columns for ' + tableName + ': ' + columnData.map((c: SQLiteColumn) => c.name).join(', '), 'MigrationService', 'syncSchemas', 'VERBOSE');
             
             // Parse column information
             const columns = columnData.map((col: SQLiteColumn) => {
@@ -255,19 +255,19 @@ export class MigrationService {
             };
           }
         } catch (directError) {
-          log('Error with direct database access: ' + directError, 'MigrationService', 'ERROR', { variableName: 'directError', value: directError });
+          log('Error with direct database access: ' + directError, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'directError', value: directError });
           // Continue with standard approach
         }
       }
       
       // Standard PRAGMA approach as fallback
-      log('Using standard PRAGMA table_info for ' + tableName, 'MigrationService', 'VERBOSE');
+      log('Using standard PRAGMA table_info for ' + tableName, 'MigrationService', 'syncSchemas', 'VERBOSE');
       const result = await this.storageService.executeSql(
         `PRAGMA table_info(${tableName})`, 
         []
       );
       
-      log('PRAGMA result type: ' + typeof result + ', isArray: ' + Array.isArray(result), 'MigrationService', 'VERBOSE');
+      log('PRAGMA result type: ' + typeof result + ', isArray: ' + Array.isArray(result), 'MigrationService', 'syncSchemas', 'VERBOSE');
       
       // SQLite returns an array-like object with results
       // In expo-sqlite, the result format can vary; we need to handle multiple formats
@@ -285,10 +285,10 @@ export class MigrationService {
         }
       }
       
-      log('Found ' + columnData.length + ' columns for ' + tableName + ' from PRAGMA: ' + columnData.map(c => c.name || 'unnamed').join(', '), 'MigrationService', 'VERBOSE');
+      log('Found ' + columnData.length + ' columns for ' + tableName + ' from PRAGMA: ' + columnData.map(c => c.name || 'unnamed').join(', '), 'MigrationService', 'syncSchemas', 'VERBOSE');
       
       if (columnData.length === 0) {
-        log('No columns found for ' + tableName + ' using PRAGMA, falling back to alternative method', 'MigrationService', 'DEBUG');
+        log('No columns found for ' + tableName + ' using PRAGMA, falling back to alternative method', 'MigrationService', 'syncSchemas', 'DEBUG');
         
         // Try to get column names by querying the table structure differently
         try {
@@ -311,7 +311,7 @@ export class MigrationService {
             }
             
             if (sql) {
-              log('Extracted CREATE TABLE SQL: ' + sql, 'MigrationService', 'VERBOSE');
+              log('Extracted CREATE TABLE SQL: ' + sql, 'MigrationService', 'syncSchemas', 'VERBOSE');
               
               // Parse column definitions from SQL
               const columnsMatch = /\(([^)]+)\)/m.exec(sql);
@@ -332,7 +332,7 @@ export class MigrationService {
                     };
                   });
                 
-                log('Parsed ' + columns.length + ' columns from SQL for ' + tableName + ': ' + columns.map(c => c.name).join(', '), 'MigrationService', 'VERBOSE');
+                log('Parsed ' + columns.length + ' columns from SQL for ' + tableName + ': ' + columns.map(c => c.name).join(', '), 'MigrationService', 'syncSchemas', 'VERBOSE');
                 
                 if (columns.length > 0) {
                   return {
@@ -344,12 +344,12 @@ export class MigrationService {
             }
           }
         } catch (sqlMasterError) {
-          log('Error getting table SQL: ' + sqlMasterError, 'MigrationService', 'ERROR', { variableName: 'sqlMasterError', value: sqlMasterError });
+          log('Error getting table SQL: ' + sqlMasterError, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'sqlMasterError', value: sqlMasterError });
         }
         
         // Try querying for a sample row with no filters
         try {
-          log('Trying SELECT * LIMIT 0 approach for ' + tableName, 'MigrationService', 'VERBOSE');
+          log('Trying SELECT * LIMIT 0 approach for ' + tableName, 'MigrationService', 'syncSchemas', 'VERBOSE');
           const query = `SELECT * FROM ${tableName} LIMIT 0`;
           const sampleResult = await this.storageService.executeSql(query, []);
           
@@ -366,7 +366,7 @@ export class MigrationService {
                   defaultValue: null
                 }));
                 
-                log('Found ' + columns.length + ' columns using SELECT * LIMIT 0: ' + columns.map(c => c.name).join(', '), 'MigrationService', 'VERBOSE');
+                log('Found ' + columns.length + ' columns using SELECT * LIMIT 0: ' + columns.map(c => c.name).join(', '), 'MigrationService', 'syncSchemas', 'VERBOSE');
                 
                 return {
                   name: tableName,
@@ -376,13 +376,13 @@ export class MigrationService {
             }
           }
         } catch (sampleError) {
-          log('Error with SELECT * approach: ' + sampleError, 'MigrationService', 'ERROR', { variableName: 'sampleError', value: sampleError });
+          log('Error with SELECT * approach: ' + sampleError, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'sampleError', value: sampleError });
         }
       }
       
       // If we still don't have columns, use schema definition as last resort
       if (columnData.length === 0) {
-        log('No columns found via database queries for ' + tableName + ', using schema definition as fallback', 'MigrationService', 'DEBUG');
+        log('No columns found via database queries for ' + tableName + ', using schema definition as fallback', 'MigrationService', 'syncSchemas', 'DEBUG');
         return this.parseSchemaDefinition(this.schemaDefinitions[tableName], tableName);
       }
       
@@ -402,7 +402,7 @@ export class MigrationService {
         columns
       };
     } catch (error) {
-      log('Error getting schema for ' + tableName + ': ' + error, 'MigrationService', 'ERROR', { variableName: 'error', value: error });
+      log('Error getting schema for ' + tableName + ': ' + error, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'error', value: error });
       return null;
     }
   }
@@ -414,7 +414,7 @@ export class MigrationService {
     try {
       // Use the tableExists method directly from storageService
       const exists = this.storageService.tableExists(tableName);
-      log('Table ' + tableName + ' exists (using StorageService): ' + exists, 'MigrationService', 'VERBOSE');
+      log('Table ' + tableName + ' exists (using StorageService): ' + exists, 'MigrationService', 'syncSchemas', 'VERBOSE');
       
       // Get more information about the table structure
       if (exists) {
@@ -424,30 +424,30 @@ export class MigrationService {
             [tableName]
           );
           
-          log('Raw table info for ' + tableName + ': ' + JSON.stringify(tableInfo), 'MigrationService', 'VERBOSE');
+          log('Raw table info for ' + tableName + ': ' + JSON.stringify(tableInfo), 'MigrationService', 'syncSchemas', 'VERBOSE');
           
           // Try to extract the SQL that created the table
           if (tableInfo && typeof tableInfo === 'object') {
             if (Array.isArray(tableInfo) && tableInfo.length > 0) {
-              log('Table ' + tableName + ' creation SQL: ' + tableInfo[0].sql, 'MigrationService', 'VERBOSE');
+              log('Table ' + tableName + ' creation SQL: ' + tableInfo[0].sql, 'MigrationService', 'syncSchemas', 'VERBOSE');
             } else if ('rows' in tableInfo) {
               const rows = (tableInfo as any).rows;
               if (rows && typeof rows.length === 'number' && rows.length > 0) {
                 const firstRow = rows.item(0);
                 if (firstRow && 'sql' in firstRow) {
-                  log('Table ' + tableName + ' creation SQL: ' + firstRow.sql, 'MigrationService', 'VERBOSE');
+                  log('Table ' + tableName + ' creation SQL: ' + firstRow.sql, 'MigrationService', 'syncSchemas', 'VERBOSE');
                 }
               }
             }
           }
         } catch (infoError) {
-          log('Error getting table info: ' + infoError, 'MigrationService', 'ERROR', { variableName: 'infoError', value: infoError });
+          log('Error getting table info: ' + infoError, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'infoError', value: infoError });
         }
       }
       
       return exists;
     } catch (error) {
-      log('Error checking if table ' + tableName + ' exists: ' + error, 'MigrationService', 'ERROR', { variableName: 'error', value: error });
+      log('Error checking if table ' + tableName + ' exists: ' + error, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'error', value: error });
       return false;
     }
   }
@@ -560,7 +560,7 @@ export class MigrationService {
       
       return storedVersion;
     } catch (error) {
-      log('Error getting schema version for ' + entityName + ': ' + error, 'MigrationService', 'ERROR', { variableName: 'error', value: error });
+      log('Error getting schema version for ' + entityName + ': ' + error, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'error', value: error });
       return null;
     }
   }
@@ -578,7 +578,7 @@ export class MigrationService {
         [entityName, schemaHash, now]
       );
     } catch (error) {
-      log('Error updating schema version for ' + entityName + ': ' + error, 'MigrationService', 'ERROR', { variableName: 'error', value: error });
+      log('Error updating schema version for ' + entityName + ': ' + error, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'error', value: error });
       throw error; // Re-throw so the caller can handle it
     }
   }
@@ -649,9 +649,10 @@ export class MigrationService {
         'Found ' + modifiedColumns.length + ' modified columns, ' +
         'but SQLite doesn\'t support ALTER COLUMN. These changes will be ignored.',
         'MigrationService',
+        'syncSchemas',
         'WARNING'
       );
-      log('Modified columns: ' + JSON.stringify(modifiedColumns), 'MigrationService', 'VERBOSE');
+      log('Modified columns: ' + JSON.stringify(modifiedColumns), 'MigrationService', 'syncSchemas', 'VERBOSE');
     }
     
     return columnsToAdd;
@@ -678,7 +679,7 @@ export class MigrationService {
           const columnDef = `${column.type}${notNullClause}${defaultClause}`;
           
           // Add column to table
-          log('Adding column ' + change.column + ' to ' + tableName + ' with definition: ' + columnDef, 'MigrationService', 'INFO');
+          log('Adding column ' + change.column + ' to ' + tableName + ' with definition: ' + columnDef, 'MigrationService', 'syncSchemas', 'INFO');
           
           try {
             // Use ALTER TABLE to add the column
@@ -686,9 +687,9 @@ export class MigrationService {
               `ALTER TABLE ${tableName} ADD COLUMN ${change.column} ${columnDef}`,
               []
             );
-            log('Successfully added column ' + change.column + ' to ' + tableName, 'MigrationService', 'INFO');
+            log('Successfully added column ' + change.column + ' to ' + tableName, 'MigrationService', 'syncSchemas', 'INFO');
           } catch (alterError) {
-            log('Error adding column ' + change.column + ' to ' + tableName + ': ' + alterError, 'MigrationService', 'ERROR', { variableName: 'alterError', value: alterError });
+            log('Error adding column ' + change.column + ' to ' + tableName + ': ' + alterError, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'alterError', value: alterError });
             throw alterError;
           }
         }
@@ -698,7 +699,7 @@ export class MigrationService {
       
       return true;
     } catch (error) {
-      log('Error applying schema changes: ' + error, 'MigrationService', 'ERROR', { variableName: 'error', value: error });
+      log('Error applying schema changes: ' + error, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'error', value: error });
       errorService.logError(
         error instanceof Error ? error : new Error(String(error)),
         ErrorLevel.ERROR,
@@ -718,7 +719,7 @@ export class MigrationService {
    */
   public async forceSchemaUpdate(tableName: string): Promise<boolean> {
     if (!this.schemaDefinitions[tableName]) {
-      log('No schema definition found for ' + tableName, 'MigrationService', 'ERROR');
+      log('No schema definition found for ' + tableName, 'MigrationService', 'syncSchemas', 'ERROR');
       return false;
     }
     
@@ -727,11 +728,11 @@ export class MigrationService {
       const tableExists = await this.tableExists(tableName);
       
       if (!tableExists) {
-        log('Table ' + tableName + ' doesn\'t exist, creating it first', 'MigrationService', 'INFO');
+        log('Table ' + tableName + ' doesn\'t exist, creating it first', 'MigrationService', 'syncSchemas', 'INFO');
         try {
           // Execute the schema definition to create the table
           await this.storageService.executeSql(this.schemaDefinitions[tableName], []);
-          log('Table ' + tableName + ' created successfully', 'MigrationService', 'INFO');
+          log('Table ' + tableName + ' created successfully', 'MigrationService', 'syncSchemas', 'INFO');
           
           // After creating the table, we don't need to add columns since it was created with the latest schema
           // But we should store the schema version
@@ -741,7 +742,7 @@ export class MigrationService {
           
           return true;
         } catch (createError) {
-          log('Failed to create table ' + tableName + ': ' + createError, 'MigrationService', 'ERROR', { variableName: 'createError', value: createError });
+          log('Failed to create table ' + tableName + ': ' + createError, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'createError', value: createError });
           return false;
         }
       }
@@ -753,7 +754,7 @@ export class MigrationService {
       const dbSchema = await this.getTableSchema(tableName);
       
       if (!dbSchema) {
-        log('Cannot force update: failed to get schema for ' + tableName, 'MigrationService', 'ERROR');
+        log('Cannot force update: failed to get schema for ' + tableName, 'MigrationService', 'syncSchemas', 'ERROR');
         return false;
       }
       
@@ -761,12 +762,12 @@ export class MigrationService {
       const columnsToAdd = _.differenceBy(codeSchema.columns, dbSchema.columns, 'name');
       
       if (columnsToAdd.length === 0) {
-        log('No columns to add for ' + tableName, 'MigrationService', 'DEBUG');
+        log('No columns to add for ' + tableName, 'MigrationService', 'syncSchemas', 'DEBUG');
         return true;
       }
       
       log('Adding ' + columnsToAdd.length + ' missing columns to ' + tableName + ': ' + 
-                 columnsToAdd.map(col => col.name).join(', '), 'MigrationService', 'INFO');
+                 columnsToAdd.map(col => col.name).join(', '), 'MigrationService', 'syncSchemas', 'INFO');
       
       // Apply changes directly
       for (const column of columnsToAdd) {
@@ -778,7 +779,7 @@ export class MigrationService {
         
         const columnDef = `${column.type}${notNullClause}${defaultClause}`;
         
-        log('Force adding column ' + column.name + ' to ' + tableName, 'MigrationService', 'INFO');
+        log('Force adding column ' + column.name + ' to ' + tableName, 'MigrationService', 'syncSchemas', 'INFO');
         await this.storageService.executeSql(
           `ALTER TABLE ${tableName} ADD COLUMN ${column.name} ${columnDef}`,
           []
@@ -791,7 +792,7 @@ export class MigrationService {
       
       return true;
     } catch (error) {
-      log('Error in forceSchemaUpdate for ' + tableName + ': ' + error, 'MigrationService', 'ERROR', { variableName: 'error', value: error });
+      log('Error in forceSchemaUpdate for ' + tableName + ': ' + error, 'MigrationService', 'syncSchemas', 'ERROR', { variableName: 'error', value: error });
       return false;
     }
   }

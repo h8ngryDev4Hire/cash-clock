@@ -28,11 +28,11 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
   taskName = "Project research",
   elapsedTime = 1513, // 25 minutes and 13 seconds
   isRunning = true,
-  onPause = () => log('Pause', 'TimerPlayer.onPause', 'DEBUG'),
-  onResume = () => log('Resume', 'TimerPlayer.onResume', 'DEBUG'),
-  onStop = () => log('Stop', 'TimerPlayer.onStop', 'DEBUG'),
-  onTaskPress = () => log('Task pressed', 'TimerPlayer.onTaskPress', 'DEBUG'),
-  onStartNewTask = (taskName) => log(`Start new task: ${taskName}`, 'TimerPlayer.onStartNewTask', 'DEBUG')
+  onPause = () => log('Pause', 'TimerPlayer', 'onPause', 'DEBUG'),
+  onResume = () => log('Resume', 'TimerPlayer', 'onResume', 'DEBUG'),
+  onStop = () => log('Stop', 'TimerPlayer', 'onStop', 'DEBUG'),
+  onTaskPress = () => log('Task pressed', 'TimerPlayer', 'onTaskPress', 'DEBUG'),
+  onStartNewTask = (taskName) => log(`Start new task: ${taskName}`, 'TimerPlayer', 'onStartNewTask', 'DEBUG')
 }) => {
   const [newTaskName, setNewTaskName] = useState('');
   const [ playerEnabled, setPlayerEnabled ] = useState(false);
@@ -43,7 +43,7 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
   // Handle starting a new task
   const handleStartNewTask = () => {
     if (newTaskName.trim()) {
-      log(`Start new task button pressed: ${newTaskName.trim()}`, 'TimerPlayer.handleStartNewTask', 'INFO');
+      log(`Start new task button pressed: ${newTaskName.trim()}`, 'TimerPlayer', 'handleStartNewTask', 'INFO');
       onStartNewTask(newTaskName.trim());
       setNewTaskName('');
     }
@@ -70,7 +70,7 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
               <Pressable 
                 className="flex-1" 
                 onPress={() => {
-                  log(`Task name pressed: ${taskName}`, 'TimerPlayer.onTaskPress', 'INFO');
+                  log(`Task name pressed: ${taskName}`, 'TimerPlayer', 'onTaskPress', 'INFO');
                   onTaskPress();
                 }}
                 accessibilityLabel="View task details"
@@ -91,15 +91,15 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
             <TimerControls 
               isRunning={isRunning}
               onPause={() => {
-                log(`Pause timer pressed for task: ${taskName}`, 'TimerPlayer.onPause', 'INFO');
+                log(`Pause timer pressed for task: ${taskName}`, 'TimerPlayer', 'onPause', 'INFO');
                 onPause();
               }}
               onResume={() => {
-                log(`Resume timer pressed for task: ${taskName}`, 'TimerPlayer.onResume', 'INFO');
+                log(`Resume timer pressed for task: ${taskName}`, 'TimerPlayer', 'onResume', 'INFO');
                 onResume();
               }}
               onStop={() => {
-                log(`Stop timer pressed for task: ${taskName}`, 'TimerPlayer.onStop', 'INFO');
+                log(`Stop timer pressed for task: ${taskName}`, 'TimerPlayer', 'onStop', 'INFO');
                 onStop();
               }}
             />
@@ -115,7 +115,7 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
                 value={newTaskName}
                 onChangeText={setNewTaskName}
                 onSubmitEditing={() => {
-                  log(`New task submitted via keyboard: ${newTaskName.trim()}`, 'TimerPlayer.onSubmitEditing', 'INFO');
+                  log(`New task submitted via keyboard: ${newTaskName.trim()}`, 'TimerPlayer', 'onSubmitEditing', 'INFO');
                   handleStartNewTask();
                 }}
                 returnKeyType="go"

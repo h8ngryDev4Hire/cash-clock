@@ -37,9 +37,9 @@ export const LocalErrorMessage: React.FC<LocalErrorMessageProps> = ({
     
     // Don't auto-dismiss fatal errors
     if (error.level !== ErrorLevel.FATAL) {
-      log('Setting auto-dismiss timeout for ' + autoDismissTimeout + 'ms', 'LocalErrorMessage', 'INFO');
+      log('Setting auto-dismiss timeout for ' + autoDismissTimeout + 'ms', 'LocalErrorMessage', 'useEffect', 'INFO');
       const timer = setTimeout(() => {
-        log('Auto-dismissing error', 'LocalErrorMessage', 'INFO');
+        log('Auto-dismissing error', 'LocalErrorMessage', 'useEffect', 'INFO');
         if (isMounted && onDismiss) {
           onDismiss();
         }
@@ -47,7 +47,7 @@ export const LocalErrorMessage: React.FC<LocalErrorMessageProps> = ({
       
       // Clean up timer
       return () => {
-        log('Clearing auto-dismiss timeout', 'LocalErrorMessage', 'INFO');
+        log('Clearing auto-dismiss timeout', 'LocalErrorMessage', 'useEffect', 'INFO');
         clearTimeout(timer);
       };
     }
@@ -87,7 +87,7 @@ export const LocalErrorMessage: React.FC<LocalErrorMessageProps> = ({
   
   // Manually dismiss the error
   const handleDismiss = () => {
-    log('Manual dismiss triggered', 'LocalErrorMessage', 'INFO');
+    log('Manual dismiss triggered', 'LocalErrorMessage', 'handleDismiss', 'INFO');
     if (onDismiss) {
       onDismiss();
     }

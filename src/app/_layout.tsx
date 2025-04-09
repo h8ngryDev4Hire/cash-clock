@@ -179,7 +179,7 @@ export default function RootLayout() {
               <TouchableOpacity
                 key={item.name}
                 onPress={() => {
-                  log('Tab pressed: ' + item.title, 'Navigation', 'INFO');
+                  log('Tab pressed: ' + item.title, 'Navigation', 'TabNavigation', 'INFO');
                   router.replace(item.path);
                 }}
                 className="items-center px-3 py-1"

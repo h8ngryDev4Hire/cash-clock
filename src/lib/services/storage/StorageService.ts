@@ -30,40 +30,40 @@ export class StorageService {
 
     try {
       this.isInitializing = true; // Set flag to indicate initialization in progress
-      log('Opening database connection...', 'StorageService.initialize', 'INFO');
+      log('Opening database connection...', 'StorageService', 'initialize', 'INFO');
       this.database = SQLite.openDatabaseSync('cashclock.db');
       
-      log('Database connection opened, creating tables...', 'StorageService.initialize', 'INFO');
+      log('Database connection opened, creating tables...', 'StorageService', 'initialize', 'INFO');
       
       // Only proceed with schema initialization if we have a valid database instance
       if (this.database) {
         // First create the tables using the schema definitions
         await this.initializeSchema();
-        log('Base schema initialized, tables created', 'StorageService.initialize', 'INFO');
+        log('Base schema initialized, tables created', 'StorageService', 'initialize', 'INFO');
         
         // Verify that tables were created
         const projectsExist = this.tableExists('projects');
-        log(`Projects table exists: ${projectsExist}`, 'StorageService.initialize', 'INFO');
+        log(`Projects table exists: ${projectsExist}`, 'StorageService', 'initialize', 'INFO');
         
         if (projectsExist) {
           // Now run migrations to detect and apply schema changes
-          log('Running schema migrations...', 'StorageService.initialize', 'INFO');
+          log('Running schema migrations...', 'StorageService', 'initialize', 'INFO');
           await this.migrationService.syncSchemas();
           
           // Force migration for the projects table to ensure the description column exists
-          log('Ensuring projects table has all required columns...', 'StorageService.initialize', 'INFO');
+          log('Ensuring projects table has all required columns...', 'StorageService', 'initialize', 'INFO');
           const projectsUpdated = await this.migrationService.forceSchemaUpdate('projects');
           if (projectsUpdated) {
-            log('Projects table schema updated successfully', 'StorageService.initialize', 'INFO');
+            log('Projects table schema updated successfully', 'StorageService', 'initialize', 'INFO');
           } else {
-            log('Projects table schema update check completed', 'StorageService.initialize', 'WARNING');
+            log('Projects table schema update check completed', 'StorageService', 'initialize', 'WARNING');
           }
         } else {
-          log('Failed to create necessary tables. Migration skipped.', 'StorageService.initialize', 'ERROR');
+          log('Failed to create necessary tables. Migration skipped.', 'StorageService', 'initialize', 'ERROR');
         }
         
         this.initialized = true;
-        log('Database initialized successfully', 'StorageService.initialize', 'INFO');
+        log('Database initialized successfully', 'StorageService', 'initialize', 'INFO');
       } else {
         throw new Error('Failed to open database connection');
       }
@@ -114,7 +114,7 @@ export class StorageService {
         }
       }
       
-      log('Database schema initialized successfully', 'StorageService.initializeSchema', 'INFO');
+      log('Database schema initialized successfully', 'StorageService', 'initializeSchema', 'INFO');
     } catch (error) {
       const appError = errorService.logError(
         error instanceof Error ? error : new Error(String(error)),

@@ -48,16 +48,16 @@ export const GlobalErrorMessage: React.FC<GlobalErrorMessageProps> = ({
     
     // Auto dismiss if enabled and not a fatal error
     if (autoDismiss && onDismiss && error.level !== ErrorLevel.FATAL && isMounted) {
-      log('Setting auto-dismiss timeout for ' + dismissTimeout + 'ms', 'GlobalErrorMessage', 'INFO');
+      log('Setting auto-dismiss timeout for ' + dismissTimeout + 'ms', 'GlobalErrorMessage', 'useEffect', 'INFO');
       const timer = setTimeout(() => {
-        log('Auto-dismissing error', 'GlobalErrorMessage', 'INFO');
+        log('Auto-dismissing error', 'GlobalErrorMessage', 'useEffect', 'INFO');
         if (isMounted) {
           dismiss();
         }
       }, dismissTimeout);
       
       return () => {
-        log('Clearing auto-dismiss timeout', 'GlobalErrorMessage', 'INFO');
+        log('Clearing auto-dismiss timeout', 'GlobalErrorMessage', 'useEffect', 'INFO');
         clearTimeout(timer);
       };
     }
@@ -67,7 +67,7 @@ export const GlobalErrorMessage: React.FC<GlobalErrorMessageProps> = ({
   const dismiss = () => {
     if (!onDismiss || !isMounted) return;
     
-    log('Dismissing error', 'GlobalErrorMessage', 'INFO');
+    log('Dismissing error', 'GlobalErrorMessage', 'dismiss', 'INFO');
     
     Animated.parallel([
       Animated.timing(slideAnim, {

@@ -53,7 +53,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
       validateTaskName();
       
       if (!isSubmitting) {
-        log('Create task button pressed: ' + taskName.trim() + ', startTimer: ' + startTimerAfterCreation, 'TaskForm', 'INFO');
+        log('Create task button pressed: ' + taskName.trim() + ', startTimer: ' + startTimerAfterCreation, 'TaskForm', 'handleSubmit', 'INFO');
         onAddTask(taskName.trim(), startTimerAfterCreation);
         setTaskName('');
         // Keep the form open for easy task creation
@@ -65,7 +65,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   };
   
   const toggleExpanded = () => {
-    log('Toggle form expanded: ' + !isExpanded, 'TaskForm', 'INFO');
+    log('Toggle form expanded: ' + !isExpanded, 'TaskForm', 'toggleExpanded', 'INFO');
     setIsExpanded(!isExpanded);
     // Clear errors when toggling the form
     clearError();
@@ -114,7 +114,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
               <LocalErrorMessage
                 error={error}
                 onDismiss={() => {
-                  log('Clearing validation error', 'TaskForm', 'INFO');
+                  log('Clearing validation error', 'TaskForm', 'onDismiss', 'INFO');
                   clearError();
                 }}
                 autoDismissTimeout={7000} // Give users more time to read validation errors

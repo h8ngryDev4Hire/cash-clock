@@ -79,7 +79,7 @@ export class TimerService {
         [taskId]
       );
     } catch (error) {
-      log('Error updating task running state', 'TimerService.startTimer', 'ERROR', { variableName: 'error', value: error });
+      log('Error updating task running state', 'TimerService', 'startTimer', 'ERROR', { variableName: 'error', value: error });
     }
     
     this.saveTimerState();
@@ -132,7 +132,7 @@ export class TimerService {
           [this.timer.taskId]
         );
       } catch (error) {
-        log('Error updating task running state', 'TimerService.resumeTimer', 'ERROR', { variableName: 'error', value: error });
+        log('Error updating task running state', 'TimerService', 'resumeTimer', 'ERROR', { variableName: 'error', value: error });
       }
     }
     
@@ -327,9 +327,9 @@ export class TimerService {
         [taskId]
       );
       
-      log('Time entry saved', 'TimerService.saveTimeEntry', 'INFO', { variableName: 'timeEntry', value: timeEntry });
+      log('Time entry saved', 'TimerService', 'saveTimeEntry', 'INFO', { variableName: 'timeEntry', value: timeEntry });
     } catch (error) {
-      log('Error saving time entry', 'TimerService.saveTimeEntry', 'ERROR', { variableName: 'error', value: error });
+      log('Error saving time entry', 'TimerService', 'saveTimeEntry', 'ERROR', { variableName: 'error', value: error });
     }
   }
   
@@ -375,7 +375,7 @@ export class TimerService {
         });
       }
     } catch (error) {
-      log('Error saving timer state', 'TimerService.saveTimerState', 'ERROR', { variableName: 'error', value: error });
+      log('Error saving timer state', 'TimerService', 'saveTimerState', 'ERROR', { variableName: 'error', value: error });
     }
   }
   
@@ -418,7 +418,7 @@ export class TimerService {
         }
       }
     } catch (error) {
-      log('Error loading timer state', 'TimerService.loadTimerState', 'ERROR', { variableName: 'error', value: error });
+      log('Error loading timer state', 'TimerService', 'loadTimerState', 'ERROR', { variableName: 'error', value: error });
       // Keep using default state if we can't load
     }
   }
@@ -447,7 +447,7 @@ export class TimerService {
       
       this.storageInitialized = true;
     } catch (error) {
-      log('Error initializing storage for timer state', 'TimerService.initializeStorage', 'ERROR', { variableName: 'error', value: error });
+      log('Error initializing storage for timer state', 'TimerService', 'initializeStorage', 'ERROR', { variableName: 'error', value: error });
       // Continue with in-memory only as fallback
     }
   }
@@ -460,7 +460,7 @@ export class TimerService {
    */
   public registerBackgroundHandler(handler: unknown): void {
     // This is a placeholder for future integration with native modules
-    log('Background handler registered - not implemented yet', 'TimerService.registerBackgroundHandler', 'INFO');
+    log('Background handler registered - not implemented yet', 'TimerService', 'registerBackgroundHandler', 'INFO');
   }
 }
 

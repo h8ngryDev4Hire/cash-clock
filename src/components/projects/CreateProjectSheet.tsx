@@ -73,7 +73,7 @@ const CreateProjectSheet: React.FC<CreateProjectSheetProps> = ({
       // Close sheet on success
       handleClose();
     } catch (error) {
-      log('Failed to create project: ' + error, 'CreateProjectSheet', 'ERROR', { variableName: 'error', value: error });
+      log('Failed to create project: ' + error, 'CreateProjectSheet', 'handleSubmit', 'ERROR', { variableName: 'error', value: error });
       setError('Failed to create project. Please try again.');
     } finally {
       setIsSubmitting(false);

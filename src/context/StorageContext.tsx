@@ -20,40 +20,17 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
   
   // Config constants
   const MAX_RETRIES = 3;
   
-  // Initialize database once on app startup
-  const initializeDatabase = useCallback(async (): Promise<boolean> => {
-    try {
-      // Initialize the database if needed
-      await storageService.initialize();
-      setIsInitialized(true);
-      return true;
-    } catch (err) {
-      log('Failed to initialize database: ' + err, 'StorageContext', 'ERROR', { variableName: 'err', value: err });
-      setError(new Error('Failed to initialize database'));
-      setIsInitialized(false);
-      return false;
-    }
-  }, []);
+  // No longer need to initialize database - handled by orchestratorService
   
   // Load all data from the database
   const loadAllData = useCallback(async (retryCount = 0): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Initialize the database if not already initialized
-      if (!isInitialized) {
-        const initialized = await initializeDatabase();
-        if (!initialized) {
-          setIsLoading(false);
-          return;
-        }
-      }
       
       // Load projects
       const projectRows = await storageService.find('projects');
@@ -108,11 +85,14 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
       setLastUpdated(Date.now());
       setIsLoading(false);
     } catch (err) {
-      log('Failed to load data: ' + err, 'StorageContext', 'ERROR', { variableName: 'err', value: err });
+      log('Failed to load data: ' + err, 'StorageContext', 'loadAllData', 'ERROR', { 
+        variableName: 'err', 
+        value: err 
+      });
       
       // Retry logic
       if (retryCount < MAX_RETRIES) {
-        log('Retrying data load (' + (retryCount + 1) + '/' + MAX_RETRIES + ')...', 'StorageContext', 'INFO');
+        log('Retrying data load (' + (retryCount + 1) + '/' + MAX_RETRIES + ')...', 'StorageContext', 'loadAllData', 'INFO');
         setTimeout(() => loadAllData(retryCount + 1), 1000);
       } else {
         const formattedError = err instanceof Error ? err : new Error('Failed to load data after multiple attempts');
@@ -128,7 +108,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
         setIsLoading(false);
       }
     }
-  }, [isInitialized, initializeDatabase]);
+  }, []);
 
   // Generic entity operations
   const createEntity = useCallback(async <T extends { itemId: string }>(
@@ -136,10 +116,6 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     data: Omit<T, 'itemId' | 'created' | 'lastUpdated'>,
     transform?: (dbData: any) => T
   ): Promise<T> => {
-    if (!isInitialized) {
-      throw new Error('Database not initialized');
-    }
-    
     const now = Date.now();
     const itemId = `${table.slice(0, -1)}_${now}_${Math.floor(Math.random() * 1000)}`;
     
@@ -155,7 +131,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     const entity = transform ? transform(dbData) : { ...dbData, itemId } as unknown as T;
     return entity;
-  }, [loadAllData, isInitialized]);
+  }, [loadAllData]);
 
   const updateEntity = useCallback(async <T extends { itemId: string }>(
     table: string,
@@ -163,10 +139,6 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     updates: Partial<Omit<T, 'itemId' | 'created' | 'lastUpdated'>>,
     transform?: (dbData: any) => T
   ): Promise<void> => {
-    if (!isInitialized) {
-      throw new Error('Database not initialized');
-    }
-    
     const now = Date.now();
     const dbUpdates: Record<string, any> = {
       last_updated: now,
@@ -175,7 +147,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     await storageService.update(table, dbUpdates, 'item_id = ?', [itemId]);
     await loadAllData();
-  }, [loadAllData, isInitialized]);
+  }, [loadAllData]);
 
   const deleteEntity = useCallback(async (
     table: string,
@@ -186,10 +158,6 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
       afterDelete?: () => Promise<void>;
     }
   ): Promise<void> => {
-    if (!isInitialized) {
-      throw new Error('Database not initialized');
-    }
-    
     await storageService.transaction(async (tx: any) => {
       if (options?.beforeDelete) {
         await options.beforeDelete();
@@ -211,22 +179,18 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     });
     await loadAllData();
-  }, [loadAllData, isInitialized]);
+  }, [loadAllData]);
 
   const findEntity = useCallback(async <T extends { itemId: string }>(
     table: string,
     itemId: string,
     transform?: (dbData: any) => T
   ): Promise<T | null> => {
-    if (!isInitialized) {
-      throw new Error('Database not initialized');
-    }
-    
     const result = await storageService.findOne(table, '*', 'item_id = ?', [itemId]);
     if (!result) return null;
     
     return transform ? transform(result) : { ...result, itemId: result.item_id } as unknown as T;
-  }, [isInitialized]);
+  }, []);
 
   const findEntities = useCallback(async <T extends { itemId: string }>(
     table: string,
@@ -234,32 +198,14 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     params?: any[],
     transform?: (dbData: any) => T
   ): Promise<T[]> => {
-    if (!isInitialized) {
-      throw new Error('Database not initialized');
-    }
-    
     const results = await storageService.find(table, '*', where || '', params || []);
     return results.map(result => transform ? transform(result) : { ...result, itemId: result.item_id } as unknown as T);
-  }, [isInitialized]);
+  }, []);
 
-  // Initial data load and database initialization
+  // Load initial data after mounting
   useEffect(() => {
-    // Initialize the database and load initial data
-    const initialize = async () => {
-      try {
-        const success = await initializeDatabase();
-        if (success) {
-          await loadAllData();
-        }
-      } catch (err) {
-        log('Error during initialization: ' + err, 'StorageContext', 'ERROR', { variableName: 'err', value: err });
-        setError(new Error('Failed to initialize database and load data'));
-        setIsLoading(false);
-      }
-    };
-    
-    initialize();
-  }, [initializeDatabase, loadAllData]);
+    loadAllData();
+  }, [loadAllData]);
 
   // Context value
   const value: StorageContextType = {
@@ -275,7 +221,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     deleteEntity,
     findEntity,
     findEntities,
-    isInitialized
+    isInitialized: true // Always true now since initialization is handled by orchestrator
   };
   
   return (

@@ -27,11 +27,11 @@ const TimerPlayer: React.FC<TimerPlayerProps> = ({
   taskName = "Project research",
   elapsedTime = 1513, // 25 minutes and 13 seconds
   isRunning = true,
-  onPause = () => log('Pause', 'TimerPlayer', 'INFO'),
-  onResume = () => log('Resume', 'TimerPlayer', 'INFO'),
-  onStop = () => log('Stop', 'TimerPlayer', 'INFO'),
-  onTaskPress = () => log('Task pressed', 'TimerPlayer', 'INFO'),
-  onStartNewTask = (taskName) => log('Start new task: ' + taskName, 'TimerPlayer', 'INFO')
+  onPause = () => log('Pause', 'PersistentTimer', 'onPause', 'INFO'),
+  onResume = () => log('Resume', 'PersistentTimer', 'onResume', 'INFO'),
+  onStop = () => log('Stop', 'PersistentTimer', 'onStop', 'INFO'),
+  onTaskPress = () => log('Task pressed', 'PersistentTimer', 'onTaskPress', 'INFO'),
+  onStartNewTask = (taskName) => log('Start new task: ' + taskName, 'PersistentTimer', 'onStartNewTask', 'INFO')
 }) => {
   const [newTaskName, setNewTaskName] = useState('');
   const colorScheme = useColorScheme();

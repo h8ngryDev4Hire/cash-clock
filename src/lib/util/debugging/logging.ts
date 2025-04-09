@@ -40,11 +40,13 @@ export interface LogMetadata {
  * 
  * @param message The message to log
  * @param caller The name of the function/method that called the logging function
+ * @param origin The originating file where the function call was made
  * @param level The level of the log message
  * @param metadata Optional structured metadata about variables
  */
 export function log(
   message: string,
+  origin: string,
   caller: string,
   level: LogLevel,
   metadata?: LogMetadata
@@ -56,10 +58,10 @@ export function log(
   if (!ENABLED_LOG_LEVELS[level]) return;
   
   // Format timestamp
-  const timestamp = new Date().toISOString();
+  // const timestamp = new Date().toISOString();
   
   // Build the log message
-  const logPrefix = `[${level}] [${caller}]:`;
+  const logPrefix = `[${level}] [${origin}: ${caller}]:`;
   
   // Use appropriate console method based on level
   const numericLevel = LOG_LEVEL_VALUES[level];

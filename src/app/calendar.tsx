@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { View, Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { addDays } from 'date-fns';
 import DaySelector from '../components/calendar/DaySelector';
@@ -55,14 +55,14 @@ export default function CalendarScreen() {
   
   // Handle time entry press
   const handleEntryPress = (entryId: string) => {
-    log('Time entry pressed: ' + entryId, 'CalendarScreen', 'INFO');
-    // In a real app, navigate to entry detail/edit
+    log('Time entry pressed: ' + entryId, 'CalendarScreen', 'handleEntryPress', 'INFO');
+    // Navigate to time entry detail
   };
   
   // Handle add new entry
   const handleAddEntry = () => {
-    log('Add new time entry', 'CalendarScreen', 'INFO');
-    // In a real app, open a modal or navigate to entry creation
+    log('Add new time entry', 'CalendarScreen', 'handleAddEntry', 'INFO');
+    // Add new time entry
   };
 
   return (

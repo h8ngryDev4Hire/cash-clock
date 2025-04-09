@@ -45,12 +45,12 @@ const Projects = () => {
     loadProjects();
   }, []);
   
-  // Refresh projects
+  // Load all projects
   const loadProjects = async () => {
     try {
       setIsLoading(true);
       clearError();
-      log('Loading projects', 'ProjectsScreen', 'INFO');
+      log('Loading projects', 'ProjectsScreen', 'loadProjects', 'INFO');
       
       await refreshData();
       
@@ -60,9 +60,9 @@ const Projects = () => {
     }
   };
   
-  // Handle project press - Navigate to project details
+  // Project list item press handler
   const handleProjectPress = (projectId: string) => {
-    log('Project pressed: ' + projectId, 'ProjectsScreen', 'INFO');
+    log('Project pressed: ' + projectId, 'ProjectsScreen', 'handleProjectPress', 'INFO');
     // Will be implemented in the future:
     // router.push(`/project/${projectId}`);
   };
@@ -81,15 +81,14 @@ const Projects = () => {
     try {
       setIsLoading(true);
       clearError();
-      log('Creating project: ' + data.name, 'ProjectsScreen', 'INFO');
+      log('Creating project: ' + data.name, 'ProjectsScreen', 'handleCreateProject', 'INFO');
       
       await createProject(data);
-      log('Project created successfully', 'ProjectsScreen', 'INFO');
+      await loadProjects();
+      log('Project created successfully', 'ProjectsScreen', 'handleCreateProject', 'INFO');
       
-      // Refresh the project list
-      await refreshData();
-      
-      setIsLoading(false);
+      // Close sheet after successful creation
+      setCreateSheetVisible(false);
     } catch (err) {
       handleError(err, ErrorLevel.ERROR, { 
         operation: 'createProject',

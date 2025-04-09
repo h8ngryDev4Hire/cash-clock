@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   View, 
   Modal, 
@@ -8,7 +8,8 @@ import {
   useColorScheme,
   Animated,
   Dimensions,
-  StatusBar
+  StatusBar,
+  PanResponder
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,7 +36,39 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
-  const translateY = new Animated.Value(Dimensions.get('window').height);
+  const translateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+  
+  // Set up pan responder for gesture handling
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only capture downward gestures
+        return gestureState.dy > 0;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Only allow downward dragging
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        // If user dragged down more than 100px or with high velocity, close the sheet
+        if (gestureState.dy > 100 || (gestureState.vy > 0.5 && gestureState.dy > 50)) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onClose();
+        } else {
+          // Otherwise, snap back to opened position
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 5,
+            speed: 14
+          }).start();
+        }
+      }
+    })
+  ).current;
   
   // Animate the bottom sheet when visibility changes
   useEffect(() => {
@@ -101,8 +134,11 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
             }
           ]}
         >
-          {/* Handle bar */}
-          <View style={styles.handleContainer}>
+          {/* Handle bar with pan responder */}
+          <View 
+            style={styles.handleContainer}
+            {...panResponder.panHandlers}  
+          >
             <View style={[
               styles.handle, 
               { backgroundColor: isDark ? '#4B5563' : '#D1D5DB' }

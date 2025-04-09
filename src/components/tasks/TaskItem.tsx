@@ -56,34 +56,6 @@ const TaskItem: React.FC<TaskItemProps> = ({
     return colors[hash];
   };
 
-  // Handle delete confirmation
-  const confirmDelete = () => {
-    log('Confirming delete for task: ' + task.name + ', ' + task.id, 'TaskItem', 'INFO');
-    Alert.alert(
-      "Delete Task",
-      `Are you sure you want to delete "${task.name}"?`,
-      [
-        {
-          text: "Cancel",
-          onPress: () => {
-            log('Delete cancelled for task: ' + task.id, 'TaskItem', 'INFO');
-            swipeableRef.current?.close();
-          },
-          style: "cancel"
-        },
-        {
-          text: "Delete",
-          onPress: () => {
-            log('Delete confirmed for task: ' + task.id, 'TaskItem', 'INFO');
-            setIsDeleting(true);
-            onDeletePress?.(task.id);
-          },
-          style: "destructive"
-        }
-      ]
-    );
-  };
-
   // Render right actions (delete button)
   const renderRightActions = () => {
     return (
@@ -94,7 +66,39 @@ const TaskItem: React.FC<TaskItemProps> = ({
             paddingHorizontal: 16,
             backgroundColor: '#991b1b' 
           }}
-          onPress={confirmDelete}
+          onPress={() => {
+            log('Confirming delete for task: ' + task.name + ', ' + task.id, 'TaskItem', 'confirmDelete', 'INFO');
+            
+            // Show delete confirmation Alert
+            Alert.alert(
+              "Delete Task",
+              `Are you sure you want to delete "${task.name}"?`,
+              [
+                {
+                  text: "Cancel",
+                  onPress: () => {
+                    log('Delete cancelled for task: ' + task.id, 'TaskItem', 'cancelDelete', 'INFO');
+                    if (swipeableRef.current) {
+                      swipeableRef.current.close();
+                    }
+                  },
+                  style: "cancel"
+                },
+                {
+                  text: "Delete",
+                  onPress: () => {
+                    log('Delete confirmed for task: ' + task.id, 'TaskItem', 'handleDelete', 'INFO');
+                    setIsDeleting(true);
+                    
+                    if (onDeletePress) {
+                      onDeletePress(task.id);
+                    }
+                  },
+                  style: "destructive"
+                }
+              ]
+            );
+          }}
         >
           <Ionicons
             name="trash-outline"
@@ -104,6 +108,22 @@ const TaskItem: React.FC<TaskItemProps> = ({
         </RectButton>
       </View>
     );
+  };
+
+  // Handle task press (view details)
+  const handlePress = () => {
+    log('Task pressed: ' + task.name + ', ' + task.id, 'TaskItem', 'handlePress', 'INFO');
+    if (onPress) {
+      onPress(task.id);
+    }
+  };
+
+  // Handle play button press
+  const handlePlayPress = () => {
+    log('Play button pressed for task: ' + task.name + ', ' + task.id, 'TaskItem', 'handlePlayPress', 'INFO');
+    if (onPlayPress) {
+      onPlayPress(task.id);
+    }
   };
 
   // Don't render if task is being deleted
@@ -119,10 +139,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
     >
       <TouchableOpacity 
         className={`p-3 rounded-xl mb-3 mx-1 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white shadow-sm border border-gray-100'}`}
-        onPress={() => {
-          log('Task pressed: ' + task.name + ', ' + task.id, 'TaskItem', 'INFO');
-          onPress?.(task.id);
-        }}
+        onPress={handlePress}
         accessibilityLabel={`Task: ${task.name}`}
         accessibilityHint="Tap to view task details. Swipe left to delete."
       >
@@ -172,10 +189,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
           {/* Play button */}
           <TouchableOpacity 
             className={`h-8 px-3 rounded-full flex-row items-center ${isDark ? 'bg-indigo-900' : 'bg-indigo-50'}`}
-            onPress={() => {
-              log('Play button pressed for task: ' + task.name + ', ' + task.id, 'TaskItem', 'INFO');
-              onPlayPress(task.id);
-            }}
+            onPress={handlePlayPress}
             accessibilityLabel={`Start ${task.name}`}
             accessibilityHint="Start timer for this task"
           >
