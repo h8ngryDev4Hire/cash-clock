@@ -187,4 +187,42 @@ export const sortTasks = (
         return multiplier * (a.updatedAt - b.updatedAt);
     }
   });
+};
+
+/**
+ * Filter and sort tasks for the past tasks view (tasks that haven't been worked on today)
+ */
+export const getPastTasks = (
+  tasks: Task[],
+  timeEntries: TimeEntrySchema[],
+  showCompleted: boolean = false
+): Task[] => {
+  // Get today's tasks to exclude them
+  const todaysTaskIds = new Set(
+    getTodaysTasks(tasks, timeEntries, showCompleted).map(task => task.id)
+  );
+  
+  // Filter to only include tasks that:
+  // 1. Have not been worked on today (not in todaysTaskIds)
+  // 2. Have some time logged (totalTime > 0)
+  // 3. Match completion filter
+  const pastTasks = tasks.filter(task => 
+    !todaysTaskIds.has(task.id) && 
+    task.totalTime > 0 && 
+    (showCompleted || !task.isCompleted)
+  );
+  
+  // Sort by last activity time or updated time
+  return pastTasks.sort((a, b) => {
+    const aLastActivity = getLastActivityTime(a.id, timeEntries);
+    const bLastActivity = getLastActivityTime(b.id, timeEntries);
+    
+    // If both have activity time, sort by that
+    if (aLastActivity && bLastActivity) {
+      return bLastActivity - aLastActivity;
+    }
+    
+    // Fall back to updated time
+    return b.updatedAt - a.updatedAt;
+  });
 }; 

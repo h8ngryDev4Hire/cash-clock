@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { FlatList, useColorScheme, View } from 'react-native';
+import { FlatList, useColorScheme, View, StyleProp, ViewStyle } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
@@ -24,6 +24,7 @@ interface TaskListProps {
   onPlayPress: (taskId: string) => void;
   onDeletePress?: (taskId: string) => void;
   isLoading?: boolean;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 /**
@@ -34,7 +35,8 @@ const TaskList: React.FC<TaskListProps> = ({
   onTaskPress,
   onPlayPress,
   onDeletePress,
-  isLoading = false
+  isLoading = false,
+  containerStyle
 }) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -101,10 +103,10 @@ const TaskList: React.FC<TaskListProps> = ({
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ 
+        contentContainerStyle={[{ 
           flexGrow: 1, 
           paddingBottom: 100 // Extra padding for bottom timer
-        }}
+        }, containerStyle]}
       />
     </>
   );

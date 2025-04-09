@@ -3,6 +3,7 @@ import { View, SafeAreaView, useColorScheme, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import ProjectList from '@components/projects/ProjectList';
 import CreateProjectSheet from '@components/projects/CreateProjectSheet';
+import ProjectDetailsSheet from '@components/projects/ProjectDetailsSheet';
 import { useProject } from '@hooks/useProject';
 import { useError } from '@hooks/useError';
 import { ErrorLevel } from '@def/error';
@@ -17,8 +18,10 @@ const Projects = () => {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   
-  // State for managing the create project sheet
+  // State for managing the bottom sheets
   const [isCreateSheetVisible, setCreateSheetVisible] = useState<boolean>(false);
+  const [isDetailsSheetVisible, setDetailsSheetVisible] = useState<boolean>(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   
   // Initialize project hooks
   const { 
@@ -60,11 +63,22 @@ const Projects = () => {
     }
   };
   
-  // Project list item press handler
+  // Project list item press handler - open details sheet
   const handleProjectPress = (projectId: string) => {
     log('Project pressed: ' + projectId, 'ProjectsScreen', 'handleProjectPress', 'INFO');
-    // Will be implemented in the future:
-    // router.push(`/project/${projectId}`);
+    setSelectedProjectId(projectId);
+    setDetailsSheetVisible(true);
+  };
+  
+  // Handle closing the details sheet
+  const handleCloseDetails = () => {
+    setDetailsSheetVisible(false);
+  };
+  
+  // Handle project deleted from the details sheet
+  const handleProjectDeleted = () => {
+    log('Project deleted from details sheet', 'ProjectsScreen', 'handleProjectDeleted', 'INFO');
+    loadProjects();
   };
   
   // Handle add project button press
@@ -119,10 +133,19 @@ const Projects = () => {
           isLoading={isLoading}
         />
         
+        {/* Create project sheet */}
         <CreateProjectSheet 
           isVisible={isCreateSheetVisible}
           onClose={() => setCreateSheetVisible(false)}
           onCreateProject={handleCreateProject}
+        />
+        
+        {/* Project details sheet */}
+        <ProjectDetailsSheet
+          isVisible={isDetailsSheetVisible}
+          onClose={handleCloseDetails}
+          projectId={selectedProjectId}
+          onProjectDeleted={handleProjectDeleted}
         />
       </View>
     </SafeAreaView>

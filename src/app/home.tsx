@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, useColorScheme, TouchableWithoutFeedback, Keyboard, StatusBar, SafeAreaView, TouchableOpacity } from "react-native";
+import { View, useColorScheme, TouchableWithoutFeedback, Keyboard, StatusBar, SafeAreaView, TouchableOpacity, Text, ScrollView, FlatList } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useTimer } from "@hooks/useTimer";
 import useTask from "@hooks/useTask";
@@ -7,10 +7,10 @@ import { useError } from "@hooks/useError";
 import { Task } from "@def/core";
 import TaskFormSheet from "@components/tasks/TaskFormSheet";
 import TaskDetailsSheet from "@components/tasks/TaskDetailsSheet";
-import TaskList from "@components/tasks/TaskList";
+import TaskItem from "@components/tasks/TaskItem";
 import EmptyState from "@components/shared/EmptyState";
 import { useRouter } from "expo-router";
-import { getTodaysTasks } from "@lib/util/task/taskFilters";
+import { getTodaysTasks, getPastTasks } from "@lib/util/task/taskFilters";
 import { LocalErrorMessage } from "@components/ui/LocalErrorMessage";
 import { ErrorLevel } from "@def/error";
 import { log } from "@lib/util/debugging/logging";
@@ -40,7 +40,8 @@ export default function HomeScreen() {
     setIsLoading
   } = useError('HomeScreen');
   
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [todaysTasks, setTodaysTasks] = useState<Task[]>([]);
+  const [pastTasks, setPastTasks] = useState<Task[]>([]);
   const [showCompleted, setShowCompleted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTaskFormVisible, setTaskFormVisible] = useState(false);
@@ -59,21 +60,25 @@ export default function HomeScreen() {
     loadTasks();
   }, []);
 
-  // Load today's tasks from the database
+  // Load tasks from the database and separate into today's and past tasks
   const loadTasks = async () => {
     try {
       setIsLoading(true);
       clearError();
-      log('Loading today\'s tasks', 'HomeScreen', 'loadTasks', 'INFO');
+      log('Loading tasks', 'HomeScreen', 'loadTasks', 'INFO');
       
       // Get all non-completed tasks
       const allTasks = await getFilteredTasks(showCompleted);
       
-      // Process tasks using utility function
-      const todaysTasks = getTodaysTasks(allTasks, timeEntries);
+      // Process tasks using utility functions
+      const tasksFromToday = getTodaysTasks(allTasks, timeEntries);
+      const tasksFromPast = getPastTasks(allTasks, timeEntries);
       
-      log('Found ' + todaysTasks.length + ' tasks active today', 'HomeScreen', 'loadTasks', 'INFO');
-      setTasks(todaysTasks);
+      log('Found ' + tasksFromToday.length + ' tasks active today', 'HomeScreen', 'loadTasks', 'INFO');
+      log('Found ' + tasksFromPast.length + ' past tasks', 'HomeScreen', 'loadTasks', 'INFO');
+      
+      setTodaysTasks(tasksFromToday);
+      setPastTasks(tasksFromPast);
       setIsLoading(false);
     } catch (err) {
       handleError(err, ErrorLevel.ERROR, { operation: 'loadTasks' });
@@ -184,6 +189,33 @@ export default function HomeScreen() {
     Keyboard.dismiss();
   };
 
+  // Render section header
+  const renderSectionHeader = (title: string, count: number) => (
+    <View className={`flex-row justify-between items-center py-3 px-1 mt-2 mb-1 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+      <Text className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-800'}`}>
+        {title}
+      </Text>
+      <View className={`px-2 py-1 rounded-full ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
+        <Text className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+          {count}
+        </Text>
+      </View>
+    </View>
+  );
+
+  // Render a task item directly (no drag functionality)
+  const renderTaskItem = (task: Task) => {
+    return (
+      <TaskItem
+        key={task.id}
+        task={task}
+        onPress={handleTaskPress}
+        onPlayPress={handleStartTask}
+        onDeletePress={handleDeleteTask}
+      />
+    );
+  };
+
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <SafeAreaView className={`flex-1 ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
@@ -199,22 +231,46 @@ export default function HomeScreen() {
             </View>
           )}
           
-          {/* Task list or empty state */}
-          {tasks.length > 0 ? (
-            <TaskList 
-              tasks={tasks} 
-              onTaskPress={handleTaskPress} 
-              onPlayPress={handleStartTask}
-              onDeletePress={handleDeleteTask}
-              isLoading={isLoading}
-            />
-          ) : (
+          {/* Task lists */}
+          {todaysTasks.length === 0 && pastTasks.length === 0 ? (
             <EmptyState 
               icon="clipboard-outline" 
-              title="No tasks today" 
+              title="No tasks yet" 
               message={`Create a task or start tracking time to see it here`} 
               isLoading={isLoading}
             />
+          ) : (
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+              {/* Today's tasks section */}
+              {renderSectionHeader("Today's Tasks", todaysTasks.length)}
+              {todaysTasks.length > 0 ? (
+                <View className="mb-6">
+                  {todaysTasks.map(task => renderTaskItem(task))}
+                </View>
+              ) : (
+                <View className={`py-8 px-4 rounded-lg mb-4 items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                  <Ionicons name="today-outline" size={32} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
+                  <Text className={`mt-2 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No tasks worked on today
+                  </Text>
+                </View>
+              )}
+              
+              {/* Past tasks section */}
+              {renderSectionHeader("Past Tasks", pastTasks.length)}
+              {pastTasks.length > 0 ? (
+                <View className="mb-24">
+                  {pastTasks.map(task => renderTaskItem(task))}
+                </View>
+              ) : (
+                <View className={`py-8 px-4 rounded-lg mb-4 items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                  <Ionicons name="time-outline" size={32} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
+                  <Text className={`mt-2 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    No past tasks available
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
           )}
           
           {/* Floating action button to add new task */}
