@@ -90,7 +90,9 @@ const Projects = () => {
   const handleCreateProject = async (data: { 
     name: string; 
     description?: string; 
-    color: string 
+    color: string;
+    goals?: string;
+    milestones?: string; 
   }) => {
     try {
       setIsLoading(true);

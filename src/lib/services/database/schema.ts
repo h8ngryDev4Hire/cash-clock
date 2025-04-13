@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS projects (
   name TEXT NOT NULL,
   description TEXT,
   color TEXT,
+  goals TEXT,
+  milestones TEXT,
   created INTEGER NOT NULL,
   last_updated INTEGER NOT NULL
 );

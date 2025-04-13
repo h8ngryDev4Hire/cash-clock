@@ -13,6 +13,8 @@ export const transformProjectSchemaToModel = (schema: ProjectSchema): Project =>
     name: schema.name,
     description: schema.description,
     color: schema.color,
+    goals: schema.goals,
+    milestones: schema.milestones,
     createdAt: schema.created,
     updatedAt: schema.lastUpdated
   };

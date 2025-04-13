@@ -51,6 +51,8 @@ export interface ProjectSchema extends BaseItem {
   name: string;
   description?: string;
   color?: string;
+  goals?: string;
+  milestones?: string;
 }
 
 /**
@@ -87,6 +89,8 @@ export interface Project {
   name: string;
   description?: string;
   color?: string;
+  goals?: string;
+  milestones?: string;
   createdAt: number;
   updatedAt: number;
 } 

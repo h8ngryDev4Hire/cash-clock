@@ -4,6 +4,8 @@ import { StorageContext } from '@context/StorageContext';
 import { TaskSchema, TimeEntrySchema } from '@def/entities';
 import { Task } from '@def/core';
 import { toUITask, toTaskSchema, addTotalTime } from '@lib/util/task/taskTransformers';
+import { calculateTotalDuration } from '@lib/util/time/timeEntryTransformers';
+import { log } from '@lib/util/debugging/logging';
 
 /**
  * useTask hook provides a clean API for components to interact with task functionality
@@ -48,12 +50,22 @@ export const useTask = () => {
    * Get a task with its current total time
    */
   const getTaskWithTime = async (taskId: string): Promise<Task | null> => {
-    const task = await taskContext.getTaskById(taskId);
-    if (!task) return null;
+    log(`getTaskWithTime: Fetching task details for taskId: ${taskId}`, 'useTask', 'getTaskWithTime', 'DEBUG');
     
+    const task = await taskContext.getTaskById(taskId);
+    if (!task) {
+      log(`getTaskWithTime: No task found for ID: ${taskId}`, 'useTask', 'getTaskWithTime', 'WARNING');
+      return null;
+    }
+    
+    // Use the taskContext method to get the total time, which already has caching logic
     const totalTime = await taskContext.getTaskTotalTime(taskId);
     
-    return addTotalTime(toUITask(task), totalTime);
+    const taskWithTime = addTotalTime(toUITask(task), totalTime);
+    log(`getTaskWithTime: Successfully retrieved task - name: ${taskWithTime.name}, totalTime: ${taskWithTime.totalTime}`, 
+        'useTask', 'getTaskWithTime', 'DEBUG');
+        
+    return taskWithTime;
   };
   
   /**
@@ -71,14 +83,26 @@ export const useTask = () => {
     taskId: string, 
     updates: Partial<{ name: string; projectId: string | null; isCompleted: boolean }>
   ): Promise<void> => {
+    log(`updateTask: Updating task ID ${taskId} with: ${JSON.stringify(updates)}`, 'useTask', 'updateTask', 'INFO');
     await taskContext.updateTask(taskId, updates);
   };
   
   /**
    * Delete a task
    */
-  const deleteTask = async (taskId: string): Promise<void> => {
-    await taskContext.deleteTask(taskId);
+  const deleteTask = async (taskId: string): Promise<boolean> => {
+    try {
+      log(`deleteTask: Deleting task ID ${taskId}`, 'useTask', 'deleteTask', 'INFO');
+      await taskContext.deleteTask(taskId);
+      log(`deleteTask: Successfully deleted task ID ${taskId}`, 'useTask', 'deleteTask', 'INFO');
+      return true;
+    } catch (err) {
+      log(`deleteTask: Error deleting task ${taskId}: ${err}`, 'useTask', 'deleteTask', 'ERROR', { 
+        variableName: 'error', 
+        value: err 
+      });
+      return false;
+    }
   };
   
   /**
@@ -113,6 +137,7 @@ export const useTask = () => {
    * Refresh tasks from the database
    */
   const refreshTasks = async (): Promise<void> => {
+    log('refreshTasks: Refreshing tasks data from storage', 'useTask', 'refreshTasks', 'DEBUG');
     await refreshData();
   };
   
@@ -135,6 +160,50 @@ export const useTask = () => {
     return allTasks.filter(task => task.projectId === projectId);
   };
   
+  /**
+   * Calculate total time spent on a task
+   * This is a more direct method that doesn't rely on the context
+   */
+  const calculateTaskTotalTime = (taskId: string): number => {
+    const taskTimeEntries = timeEntries.filter(entry => entry.taskId === taskId);
+    return calculateTotalDuration(taskTimeEntries);
+  };
+  
+  /**
+   * Load and refresh complete task data
+   * This method combines multiple operations for fetching fresh task data
+   */
+  const loadTaskDetails = async (taskId: string | null): Promise<Task | null> => {
+    if (!taskId) {
+      log('loadTaskDetails: No taskId provided', 'useTask', 'loadTaskDetails', 'WARNING');
+      return null;
+    }
+    
+    try {
+      // Refresh all data first to ensure we have the latest
+      log('loadTaskDetails: Refreshing all data first', 'useTask', 'loadTaskDetails', 'DEBUG');
+      await refreshData();
+      
+      // Then fetch the specific task with time
+      log(`loadTaskDetails: Fetching task details for ID ${taskId}`, 'useTask', 'loadTaskDetails', 'DEBUG');
+      const taskData = await getTaskWithTime(taskId);
+      
+      if (!taskData) {
+        log(`loadTaskDetails: No task found for ID ${taskId}`, 'useTask', 'loadTaskDetails', 'WARNING');
+        return null;
+      }
+      
+      log(`loadTaskDetails: Successfully loaded task ${taskId} - ${taskData.name}`, 'useTask', 'loadTaskDetails', 'INFO');
+      return taskData;
+    } catch (err) {
+      log(`loadTaskDetails: Error loading task data for ${taskId}: ${err}`, 'useTask', 'loadTaskDetails', 'ERROR', {
+        variableName: 'error',
+        value: err
+      });
+      return null;
+    }
+  };
+  
   return {
     // State (now from StorageContext)
     tasks,
@@ -154,13 +223,23 @@ export const useTask = () => {
     getTaskWithTime,
     getFilteredTasks,
     getTasksByProject,
+    loadTaskDetails,
+    
+    // Time calculations
+    calculateTaskTotalTime,
     
     // Project relationship
     assignToProject,
     removeFromProject,
     
     // Data management
-    refreshTasks
+    refreshTasks,
+    refreshData,
+    
+    // Transformation utilities
+    toUITask,
+    toTaskSchema,
+    addTotalTime
   };
 };
 

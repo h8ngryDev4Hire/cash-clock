@@ -6,11 +6,11 @@ import useTask from "@hooks/useTask";
 import { useError } from "@hooks/useError";
 import { Task } from "@def/core";
 import TaskFormSheet from "@components/tasks/TaskFormSheet";
-import TaskDetailsSheet from "@components/tasks/TaskDetailsSheet";
+import TaskDetailsSheet from "@components/tasks/TaskDetailsSheet/TaskDetailsSheet";
 import TaskItem from "@components/tasks/TaskItem";
 import EmptyState from "@components/shared/EmptyState";
 import { useRouter } from "expo-router";
-import { getTodaysTasks, getPastTasks } from "@lib/util/task/taskFilters";
+import { getTodaysTasks, getPastTasks, getTasksWithTodayTimeEntries } from "@lib/util/task/taskFilters";
 import { LocalErrorMessage } from "@components/ui/LocalErrorMessage";
 import { ErrorLevel } from "@def/error";
 import { log } from "@lib/util/debugging/logging";
@@ -40,7 +40,7 @@ export default function HomeScreen() {
     setIsLoading
   } = useError('HomeScreen');
   
-  const [todaysTasks, setTodaysTasks] = useState<Task[]>([]);
+  const [todaysActivity, setTodaysActivity] = useState<Task[]>([]);
   const [pastTasks, setPastTasks] = useState<Task[]>([]);
   const [showCompleted, setShowCompleted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,19 +65,32 @@ export default function HomeScreen() {
     try {
       setIsLoading(true);
       clearError();
-      log('Loading tasks', 'HomeScreen', 'loadTasks', 'INFO');
+      log('Loading tasks and activity data', 'HomeScreen', 'loadTasks', 'INFO');
       
       // Get all non-completed tasks
       const allTasks = await getFilteredTasks(showCompleted);
+      log(`Retrieved ${allTasks.length} tasks from storage`, 'HomeScreen', 'loadTasks', 'DEBUG');
+      log(`Time entries in storage: ${timeEntries.length}`, 'HomeScreen', 'loadTasks', 'DEBUG');
       
       // Process tasks using utility functions
-      const tasksFromToday = getTodaysTasks(allTasks, timeEntries);
-      const tasksFromPast = getPastTasks(allTasks, timeEntries);
+      log('Finding tasks with today\'s activity', 'HomeScreen', 'loadTasks', 'DEBUG');
+      const tasksWithTodayActivity = getTasksWithTodayTimeEntries(allTasks, timeEntries, showCompleted);
       
-      log('Found ' + tasksFromToday.length + ' tasks active today', 'HomeScreen', 'loadTasks', 'INFO');
-      log('Found ' + tasksFromPast.length + ' past tasks', 'HomeScreen', 'loadTasks', 'INFO');
+      log('Finding past tasks', 'HomeScreen', 'loadTasks', 'DEBUG');
+      const tasksFromPast = getPastTasks(allTasks, timeEntries, showCompleted);
       
-      setTodaysTasks(tasksFromToday);
+      log(`Found ${tasksWithTodayActivity.length} tasks with activity today`, 'HomeScreen', 'loadTasks', 'INFO');
+      log(`Found ${tasksFromPast.length} past tasks`, 'HomeScreen', 'loadTasks', 'INFO');
+      
+      // Log details about found tasks for debugging
+      if (tasksWithTodayActivity.length > 0) {
+        log('Today\'s activity tasks:', 'HomeScreen', 'loadTasks', 'DEBUG', {
+          variableName: 'taskNames',
+          value: tasksWithTodayActivity.map(t => `${t.name} (${t.id}): ${t.totalTime}s`)
+        });
+      }
+      
+      setTodaysActivity(tasksWithTodayActivity);
       setPastTasks(tasksFromPast);
       setIsLoading(false);
     } catch (err) {
@@ -90,7 +103,7 @@ export default function HomeScreen() {
     try {
       setIsLoading(true);
       clearError();
-      log('Refreshing tasks', 'HomeScreen', 'handleRefresh', 'INFO');
+      log('Refreshing tasks and activity data', 'HomeScreen', 'handleRefresh', 'INFO');
       await refreshTasks();
       await loadTasks();
       setIsLoading(false);
@@ -232,7 +245,7 @@ export default function HomeScreen() {
           )}
           
           {/* Task lists */}
-          {todaysTasks.length === 0 && pastTasks.length === 0 ? (
+          {todaysActivity.length === 0 && pastTasks.length === 0 ? (
             <EmptyState 
               icon="clipboard-outline" 
               title="No tasks yet" 
@@ -241,17 +254,17 @@ export default function HomeScreen() {
             />
           ) : (
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-              {/* Today's tasks section */}
-              {renderSectionHeader("Today's Tasks", todaysTasks.length)}
-              {todaysTasks.length > 0 ? (
+              {/* Today's activity section */}
+              {renderSectionHeader("Today's Activity", todaysActivity.length)}
+              {todaysActivity.length > 0 ? (
                 <View className="mb-6">
-                  {todaysTasks.map(task => renderTaskItem(task))}
+                  {todaysActivity.map(task => renderTaskItem(task))}
                 </View>
               ) : (
                 <View className={`py-8 px-4 rounded-lg mb-4 items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
                   <Ionicons name="today-outline" size={32} color={isDark ? '#9CA3AF' : '#9CA3AF'} />
                   <Text className={`mt-2 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    No tasks worked on today
+                    No activity recorded today
                   </Text>
                 </View>
               )}

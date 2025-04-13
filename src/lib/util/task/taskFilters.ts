@@ -1,5 +1,6 @@
 import { Task } from '@def/core';
 import { TimeEntrySchema } from '@def/entities';
+import { log } from '@lib/util/debugging/logging';
 
 /**
  * Check if a timestamp is from today
@@ -225,4 +226,94 @@ export const getPastTasks = (
     // Fall back to updated time
     return b.updatedAt - a.updatedAt;
   });
+};
+
+/**
+ * Check if a task has any time entries on today's date
+ */
+export const hasTimeEntryToday = (taskId: string, allTimeEntries: TimeEntrySchema[]): boolean => {
+  log(`Checking if task ${taskId} has time entries today`, 'taskFilters', 'hasTimeEntryToday', 'DEBUG');
+  
+  const taskEntries = allTimeEntries.filter(entry => entry.taskId === taskId);
+  
+  if (taskEntries.length === 0) {
+    log(`Task ${taskId} has no time entries at all`, 'taskFilters', 'hasTimeEntryToday', 'DEBUG');
+    return false;
+  }
+  
+  // Check if any entry was active today
+  const hasEntryToday = taskEntries.some(entry => {
+    const startedToday = isToday(entry.timeStarted);
+    const endedToday = entry.timeEnded ? isToday(entry.timeEnded) : false;
+    const isRunningToday = entry.isRunning && (startedToday || isToday(Date.now() / 1000));
+    
+    const hasActivityToday = startedToday || endedToday || isRunningToday;
+    
+    if (hasActivityToday) {
+      log(`Task ${taskId} has activity today: started today: ${startedToday}, ended today: ${endedToday}, running today: ${isRunningToday}`, 
+          'taskFilters', 'hasTimeEntryToday', 'DEBUG');
+    }
+    
+    return hasActivityToday;
+  });
+  
+  return hasEntryToday;
+};
+
+/**
+ * Get all tasks that have time entries from today
+ * This includes tasks that:
+ * 1. Have time entries that started today
+ * 2. Have time entries that ended today
+ * 3. Have running time entries
+ */
+export const getTasksWithTodayTimeEntries = (
+  tasks: Task[],
+  timeEntries: TimeEntrySchema[],
+  showCompleted: boolean = false
+): Task[] => {
+  log(`Finding all tasks with today's time entries. Total tasks: ${tasks.length}, Total time entries: ${timeEntries.length}`, 
+      'taskFilters', 'getTasksWithTodayTimeEntries', 'INFO');
+      
+  // Process tasks to evaluate today's activity
+  const tasksWithTodayEntries = tasks
+    .filter(task => {
+      // Check if the task has time entries today
+      const hasTodayTimeEntry = hasTimeEntryToday(task.id, timeEntries);
+      
+      // Apply completion filter
+      const matchesCompletionFilter = showCompleted || !task.isCompleted;
+      
+      // Include if it has today's time entry and matches completion filter
+      const shouldInclude = hasTodayTimeEntry && matchesCompletionFilter;
+      
+      log(`Task ${task.id} (${task.name}): has today's entry: ${hasTodayTimeEntry}, include: ${shouldInclude}`, 
+          'taskFilters', 'getTasksWithTodayTimeEntries', 'DEBUG');
+      
+      return shouldInclude;
+    })
+    .map(task => {
+      // Calculate time spent today
+      const timeSpentToday = calculateTimeSpentToday(task.id, timeEntries);
+      const lastActivityTime = getLastActivityTime(task.id, timeEntries);
+      
+      log(`Task ${task.id} (${task.name}): time spent today: ${timeSpentToday} seconds`, 
+          'taskFilters', 'getTasksWithTodayTimeEntries', 'DEBUG');
+      
+      return {
+        ...task,
+        totalTime: timeSpentToday, // Override with today's time
+        lastActivityTime // Add for sorting
+      };
+    });
+  
+  // Sort by last activity time, most recent first
+  const sortedTasks = tasksWithTodayEntries.sort((a, b) => 
+    (b.lastActivityTime || 0) - (a.lastActivityTime || 0)
+  );
+  
+  log(`Found ${sortedTasks.length} tasks with today's time entries`, 
+      'taskFilters', 'getTasksWithTodayTimeEntries', 'INFO');
+  
+  return sortedTasks;
 }; 

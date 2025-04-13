@@ -16,6 +16,12 @@ import { getColorValue, PROJECT_COLORS } from '@lib/util/project/projectColors';
 import { formatDuration } from '@lib/util/time/timeFormatters';
 import { log } from '@lib/util/debugging/logging';
 
+// Define milestone interface
+interface Milestone {
+  id: string;
+  text: string;
+}
+
 interface ProjectDetailsSheetProps {
   isVisible: boolean;
   onClose: () => void;
@@ -40,6 +46,9 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [projectColor, setProjectColor] = useState('');
+  const [projectGoals, setProjectGoals] = useState('');
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [newMilestone, setNewMilestone] = useState('');
   const [taskCount, setTaskCount] = useState(0);
   const [completedTaskCount, setCompletedTaskCount] = useState(0);
   const [completionPercentage, setCompletionPercentage] = useState(0);
@@ -47,6 +56,25 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  
+  // Parse milestones from JSON string
+  const parseMilestones = (milestonesStr?: string): Milestone[] => {
+    if (!milestonesStr) return [];
+    
+    try {
+      const milestonesArr = JSON.parse(milestonesStr);
+      if (Array.isArray(milestonesArr)) {
+        return milestonesArr.map((text, index) => ({
+          id: `milestone_${index}_${Date.now()}`,
+          text
+        }));
+      }
+      return [];
+    } catch (err) {
+      // If the string is not in JSON format (old format), create a single milestone
+      return milestonesStr.trim() ? [{ id: `milestone_0_${Date.now()}`, text: milestonesStr }] : [];
+    }
+  };
   
   // Get the project icon based on the project name
   const getProjectIcon = (): string => {
@@ -62,7 +90,26 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
     return 'folder-outline';
   };
   
-  // Split the useEffect hooks - one for visibility changes and one for data fetching
+  // Handle adding a new milestone
+  const handleAddMilestone = () => {
+    if (!newMilestone.trim()) {
+      return;
+    }
+    
+    const milestone: Milestone = {
+      id: Date.now().toString(),
+      text: newMilestone.trim()
+    };
+    
+    setMilestones([...milestones, milestone]);
+    setNewMilestone('');
+  };
+
+  // Handle removing a milestone
+  const handleRemoveMilestone = (id: string) => {
+    setMilestones(milestones.filter(milestone => milestone.id !== id));
+  };
+  
   // First useEffect to handle refreshing data only when the sheet becomes visible
   useEffect(() => {
     if (isVisible && projectId) {
@@ -83,6 +130,8 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
               setProjectName(projectData.name);
               setProjectDescription(projectData.description || '');
               setProjectColor(projectData.color || '');
+              setProjectGoals(projectData.goals || '');
+              setMilestones(parseMilestones(projectData.milestones));
             }
             
             // Always update stats
@@ -114,15 +163,28 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
   const handleSave = async () => {
     if (!projectId || projectName.trim() === '') return;
     
+    // Validate required fields
+    if (!projectGoals.trim()) {
+      setLocalError('Project goals are required');
+      return;
+    }
+    
     try {
       setIsSaving(true);
       log('Saving project data for ID: ' + projectId, 'ProjectDetailsSheet', 'handleSave', 'INFO');
+      
+      // Convert milestones array to JSON string
+      const milestonesString = milestones.length > 0 
+        ? JSON.stringify(milestones.map(m => m.text))
+        : '';
       
       // Update project with new data
       await updateProject(projectId, { 
         name: projectName.trim(),
         description: projectDescription.trim(),
-        color: projectColor
+        color: projectColor,
+        goals: projectGoals.trim(),
+        milestones: milestonesString
       });
       
       setIsEditing(false);
@@ -190,6 +252,11 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
     setProjectDescription(text);
   };
   
+  // Handle text change for goals
+  const handleGoalsChange = (text: string) => {
+    setProjectGoals(text);
+  };
+  
   // Handle color selection
   const handleColorSelect = (colorId: string) => {
     setProjectColor(colorId);
@@ -205,6 +272,9 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
         setProjectName(projectData.name);
         setProjectDescription(projectData.description || '');
         setProjectColor(projectData.color || '');
+        setProjectGoals(projectData.goals || '');
+        setMilestones(parseMilestones(projectData.milestones));
+        setNewMilestone('');
       }
     }
     setIsEditing(false);
@@ -251,11 +321,30 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
     );
   };
   
+  // Render milestone item
+  const renderMilestoneItem = (item: Milestone, showDelete = true) => {
+    return (
+      <View key={item.id} className={`flex-row items-center p-2 mb-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+        <Text className={`flex-1 ${isDark ? 'text-white' : 'text-gray-800'}`}>
+          {item.text}
+        </Text>
+        {showDelete && isEditing && (
+          <TouchableOpacity
+            onPress={() => handleRemoveMilestone(item.id)}
+            className="p-1"
+          >
+            <Ionicons name="close-circle" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+  
   return (
     <BottomSheet
       isVisible={isVisible}
       onClose={handleClose}
-      height={550}
+      height={600}
     >
       <View className="flex-1">
         <View className="flex-row justify-between items-center mb-4">
@@ -297,178 +386,210 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
             <ActivityIndicator size="large" color={isDark ? '#ffffff' : '#6366F1'} />
           ) : (
             <>
-              {/* Project header with color and icon */}
-              <View className={`flex-row items-center mb-5 ${isEditing ? 'opacity-50' : ''}`}>
-                <View 
-                  className="w-12 h-12 rounded-xl items-center justify-center mr-4"
-                  style={{ backgroundColor: `${getColorValue(projectColor)}20` }}
-                >
-                  <Ionicons 
-                    name={getProjectIcon() as any} 
-                    size={24} 
-                    color={getColorValue(projectColor)} 
-                  />
-                </View>
-                
-                {!isEditing && (
-                  <View className="flex-1">
-                    <Text className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
+              {/* View mode */}
+              {!isEditing ? (
+                <View className="mb-4">
+                  <View className="flex-row items-center gap-3 mb-3">
+                    <View 
+                      className="w-10 h-10 rounded-full items-center justify-center"
+                      style={{ backgroundColor: getColorValue(projectColor) }}
+                    >
+                      <Ionicons name={getProjectIcon() as any} size={20} color="#FFFFFF" />
+                    </View>
+                    <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
                       {projectName}
                     </Text>
-                    {projectDescription ? (
-                      <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {projectDescription}
-                      </Text>
-                    ) : null}
-                  </View>
-                )}
-              </View>
-
-              {isEditing ? (
-                <View className="mb-5">
-                  {/* Project name field */}
-                  <View className="mb-3">
-                    <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Project Name <Text className="text-red-500">*</Text>
-                    </Text>
-                    <TextInput
-                      className={`p-3 rounded-lg ${isDark ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'} border`}
-                      placeholder="Enter project name"
-                      placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
-                      value={projectName}
-                      onChangeText={handleNameChange}
-                      maxLength={50}
-                      autoCapitalize="words"
-                    />
-                  </View>
-                  
-                  {/* Project description field */}
-                  <View className="mb-3">
-                    <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Description (Optional)
-                    </Text>
-                    <TextInput
-                      className={`p-3 rounded-lg ${isDark ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'} border min-h-[80px]`}
-                      placeholder="Enter project description"
-                      placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
-                      value={projectDescription}
-                      onChangeText={handleDescriptionChange}
-                      multiline
-                      maxLength={200}
-                      textAlignVertical="top"
-                    />
-                  </View>
-                  
-                  {/* Project color selection */}
-                  <View className="mb-4">
-                    <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Project Color
-                    </Text>
-                    {renderColorOptions()}
-                  </View>
-                  
-                  {/* Action buttons */}
-                  <View className="flex-row justify-end mt-2">
-                    <TouchableOpacity 
-                      onPress={handleCancelEdit}
-                      className="px-4 py-2 mr-2 rounded-md"
-                    >
-                      <Text className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Cancel</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      onPress={handleSave}
-                      className={`px-4 py-2 rounded-md ${isDark ? 'bg-indigo-600' : 'bg-indigo-500'}`}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <Text className="text-white">Save</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <>
-                  {/* Edit button */}
-                  <View className="flex-row justify-end mb-4">
                     <TouchableOpacity 
                       onPress={handleEditPress}
-                      className={`px-3 py-1 rounded-md flex-row items-center ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
+                      className="ml-auto p-2"
                     >
                       <Ionicons 
                         name="pencil-outline" 
-                        size={16} 
+                        size={18} 
                         color={isDark ? '#9CA3AF' : '#6B7280'} 
-                        style={{ marginRight: 4 }}
                       />
-                      <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                        Edit
-                      </Text>
                     </TouchableOpacity>
                   </View>
                   
-                  {/* Project stats */}
-                  <View className={`p-4 rounded-lg mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
-                    <Text className={`text-sm font-medium mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Project Statistics
-                    </Text>
-                    
-                    {/* Task count */}
-                    <View className="flex-row items-center justify-between mb-3">
-                      <View className="flex-row items-center">
-                        <View className={`w-8 h-8 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-100'} items-center justify-center mr-3`}>
-                          <Ionicons name="list-outline" size={16} color={isDark ? '#a5b4fc' : '#6366F1'} />
-                        </View>
-                        <Text className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Tasks
-                        </Text>
-                      </View>
-                      <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                        {taskCount} ({completedTaskCount} completed)
+                  {projectDescription ? (
+                    <View className="mb-4">
+                      <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Description
+                      </Text>
+                      <Text className={isDark ? 'text-white' : 'text-gray-800'}>
+                        {projectDescription}
+                      </Text>
+                    </View>
+                  ) : null}
+                  
+                  {projectGoals ? (
+                    <View className="mb-4">
+                      <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Goals
+                      </Text>
+                      <Text className={isDark ? 'text-white' : 'text-gray-800'}>
+                        {projectGoals}
+                      </Text>
+                    </View>
+                  ) : null}
+                  
+                  {milestones.length > 0 ? (
+                    <View className="mb-4">
+                      <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Milestones
+                      </Text>
+                      {milestones.map(milestone => renderMilestoneItem(milestone, false))}
+                    </View>
+                  ) : null}
+                  
+                  <View className="flex-row flex-wrap mt-1 gap-2">
+                    <View className={`px-3 py-1 rounded-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                      <Text className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
                       </Text>
                     </View>
                     
-                    {/* Total time */}
-                    <View className="flex-row items-center justify-between mb-3">
-                      <View className="flex-row items-center">
-                        <View className={`w-8 h-8 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-100'} items-center justify-center mr-3`}>
-                          <Ionicons name="time-outline" size={16} color={isDark ? '#a5b4fc' : '#6366F1'} />
-                        </View>
-                        <Text className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Total Time
-                        </Text>
-                      </View>
-                      <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                        {formatDuration(totalTime)}
-                      </Text>
-                    </View>
-                    
-                    {/* Completion bar */}
                     {taskCount > 0 && (
-                      <View className="mt-3">
-                        <View className="flex-row items-center justify-between mb-1">
-                          <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Progress
-                          </Text>
-                          <Text className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                            {completionPercentage}%
-                          </Text>
-                        </View>
-                        <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <View 
-                            className="h-full rounded-full"
-                            style={{ 
-                              width: `${completionPercentage}%`,
-                              backgroundColor: getColorValue(projectColor)
-                            }}
-                          />
-                        </View>
+                      <View className={`px-3 py-1 rounded-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                        <Text className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {completionPercentage}% complete
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {totalTime > 0 && (
+                      <View className={`px-3 py-1 rounded-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                        <Text className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {formatDuration(totalTime)}
+                        </Text>
                       </View>
                     )}
                   </View>
-                </>
+                </View>
+              ) : (
+                <View className="mb-4">
+                  {/* Edit mode */}
+                  <View>
+                    {/* Project name field */}
+                    <View className="mb-3">
+                      <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Project Name <Text className="text-red-500">*</Text>
+                      </Text>
+                      <TextInput
+                        className={`p-3 rounded-lg ${isDark ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'} border`}
+                        placeholder="Enter project name"
+                        placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+                        value={projectName}
+                        onChangeText={handleNameChange}
+                        maxLength={50}
+                      />
+                    </View>
+                    
+                    {/* Project description field */}
+                    <View className="mb-3">
+                      <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Description (Optional)
+                      </Text>
+                      <TextInput
+                        className={`p-3 rounded-lg ${isDark ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'} border min-h-[80px]`}
+                        placeholder="Enter project description"
+                        placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+                        value={projectDescription}
+                        onChangeText={handleDescriptionChange}
+                        multiline
+                        maxLength={200}
+                        textAlignVertical="top"
+                      />
+                    </View>
+                    
+                    {/* Project color field */}
+                    <View className="mb-3">
+                      <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Project Color
+                      </Text>
+                      {renderColorOptions()}
+                    </View>
+                    
+                    {/* Project goals field */}
+                    <View className="mb-3">
+                      <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Project Goals <Text className="text-red-500">*</Text>
+                      </Text>
+                      <TextInput
+                        className={`p-3 rounded-lg ${isDark ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'} border min-h-[80px]`}
+                        placeholder="Enter project goals"
+                        placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+                        value={projectGoals}
+                        onChangeText={handleGoalsChange}
+                        multiline
+                        maxLength={200}
+                        textAlignVertical="top"
+                      />
+                    </View>
+                    
+                    {/* Project milestones field */}
+                    <View className="mb-4">
+                      <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Project Milestones (Optional)
+                      </Text>
+                      
+                      {/* Milestone list */}
+                      {milestones.length > 0 && (
+                        <View className="mb-2">
+                          {milestones.map(milestone => renderMilestoneItem(milestone))}
+                        </View>
+                      )}
+                      
+                      {/* Add milestone form */}
+                      <View className="flex-row mb-2">
+                        <TextInput
+                          className={`flex-1 p-3 rounded-l-lg ${isDark ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'} border-r-0 border`}
+                          placeholder="Add a milestone"
+                          placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
+                          value={newMilestone}
+                          onChangeText={setNewMilestone}
+                          editable={!isSaving}
+                        />
+                        <TouchableOpacity
+                          className={`px-3 rounded-r-lg items-center justify-center ${isDark ? 'bg-gray-700 border-gray-700' : 'bg-gray-200 border-gray-200'} border`}
+                          onPress={handleAddMilestone}
+                          disabled={!newMilestone.trim() || isSaving}
+                        >
+                          <Ionicons name="add" size={24} color={isDark ? '#FFFFFF' : '#374151'} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    
+                    {/* Action buttons */}
+                    <View className="flex-row gap-3">
+                      <TouchableOpacity
+                        className={`flex-1 p-3 rounded-lg items-center justify-center bg-gray-300 dark:bg-gray-700`}
+                        onPress={handleCancelEdit}
+                        disabled={isSaving}
+                      >
+                        <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                          Cancel
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        className={`flex-1 p-3 rounded-lg items-center justify-center ${
+                          isSaving ? 'bg-blue-400' : !projectGoals.trim() ? 'bg-blue-300' : 'bg-blue-500'
+                        }`}
+                        onPress={handleSave}
+                        disabled={isSaving || !projectName.trim() || !projectGoals.trim()}
+                      >
+                        {isSaving ? (
+                          <ActivityIndicator color="#FFFFFF" size="small" />
+                        ) : (
+                          <Text className="text-white font-medium">
+                            Save Changes
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
               )}
             </>
           )}

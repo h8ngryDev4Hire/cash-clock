@@ -44,6 +44,8 @@ export const useProject = () => {
       name: string;
       description?: string;
       color?: string;
+      goals?: string;
+      milestones?: string;
     }
   ) => {
     // Set default color if not provided
@@ -52,7 +54,9 @@ export const useProject = () => {
     const dbData = {
       name: data.name,
       description: data.description || '',
-      color: projectColor
+      color: projectColor,
+      goals: data.goals || '',
+      milestones: data.milestones || '',
     };
 
     const transform = (dbData: any): ProjectSchema => ({
@@ -74,6 +78,8 @@ export const useProject = () => {
       name?: string;
       description?: string;
       color?: string;
+      goals?: string;
+      milestones?: string;
     }
   ) => {
     const dbUpdates: Record<string, any> = {};
@@ -81,6 +87,8 @@ export const useProject = () => {
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.color !== undefined) dbUpdates.color = updates.color;
+    if (updates.goals !== undefined) dbUpdates.goals = updates.goals;
+    if (updates.milestones !== undefined) dbUpdates.milestones = updates.milestones;
 
     await storage.updateEntity<ProjectSchema>('projects', projectId, dbUpdates);
   }, [storage]);

@@ -3,15 +3,23 @@
  */
 
 /**
- * Formats elapsed time in seconds to MM:SS format
- * @param seconds Time in seconds
- * @returns Formatted time string (MM:SS)
+ * Format seconds as HH:MM:SS
+ * @param seconds Number of seconds
+ * @returns Formatted time string (e.g., "01:23:45")
  */
-export function formatElapsedTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
+export const formatElapsedTime = (seconds: number): string => {
+  if (seconds < 0) seconds = 0;
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  return [
+    hours.toString().padStart(2, '0'),
+    minutes.toString().padStart(2, '0'),
+    secs.toString().padStart(2, '0')
+  ].join(':');
+};
 
 /**
  * Formats milliseconds into a human-readable time string
@@ -44,14 +52,13 @@ export function formatTime(milliseconds: number, showMilliseconds: boolean = fal
 }
 
 /**
- * Format seconds as a duration string
- * @param seconds Time in seconds
- * @returns Formatted duration string (e.g., "2h 15m" or "45m")
+ * Format seconds as a human-readable duration (Xh Ym)
+ * @param seconds Number of seconds
+ * @returns Formatted duration string (e.g., "1h 23m")
  */
-export function formatDuration(seconds: number): string {
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
+export const formatDuration = (seconds: number): string => {
+  if (seconds < 0) seconds = 0;
+  if (seconds === 0) return '0m';
   
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -61,50 +68,117 @@ export function formatDuration(seconds: number): string {
   }
   
   return `${minutes}m`;
-}
+};
 
 /**
- * Format relative time (e.g., "2 hours ago", "5 minutes ago")
- * @param timestamp Unix timestamp in milliseconds
- * @returns Formatted relative time string
- */
-export function formatRelativeTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  
-  if (days > 0) {
-    return `${days}d ago`;
-  }
-  if (hours > 0) {
-    return `${hours}h ago`;
-  }
-  if (minutes > 0) {
-    return `${minutes}m ago`;
-  }
-  return 'just now';
-}
-
-/**
- * Format task duration for display
+ * Format task duration for display (alias of formatDuration for backward compatibility)
  * @param totalTime Total time in seconds
  * @returns Formatted duration string
  */
-export function formatTaskDuration(totalTime: number): string {
-  if (totalTime < 60) {
-    return `${totalTime}s`;
+export const formatTaskDuration = formatDuration;
+
+/**
+ * Format a timestamp into a relative time string (e.g., "2 hours ago")
+ * @param timestamp Timestamp in milliseconds
+ * @returns Relative time string
+ */
+export const formatRelativeTime = (timestamp: number): string => {
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffSeconds = Math.floor(diffMs / 1000);
+  
+  if (diffSeconds < 60) {
+    return 'Just now';
   }
   
-  const hours = Math.floor(totalTime / 3600);
-  const minutes = Math.floor((totalTime % 3600) / 60);
-  
-  if (hours > 0) {
-    return `${hours}h ${minutes > 0 ? `${minutes}m` : ''}`;
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) {
+    return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
   }
   
-  return `${minutes}m`;
-} 
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  }
+  
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+  }
+  
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 4) {
+    return `${diffWeeks} ${diffWeeks === 1 ? 'week' : 'weeks'} ago`;
+  }
+  
+  // For older entries, just return the date
+  const date = new Date(timestamp);
+  return date.toLocaleDateString();
+};
+
+/**
+ * Format a timestamp to a readable date-time string
+ * @param timestamp Timestamp in seconds (Unix timestamp)
+ * @returns Formatted date-time string (e.g., "Jan 15, 9:30 AM")
+ */
+export const formatTimeStamp = (timestamp: number | null): string => {
+  if (!timestamp) return 'N/A';
+  
+  // Convert from Unix timestamp (seconds) to JavaScript Date (milliseconds)
+  const date = new Date(timestamp * 1000);
+  
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
+/**
+ * Check if a timestamp is from today
+ * @param timestamp Timestamp in seconds
+ * @returns Boolean indicating if the timestamp is from today
+ */
+export const isToday = (timestamp: number): boolean => {
+  const date = new Date(timestamp * 1000);
+  const today = new Date();
+  
+  return date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear();
+};
+
+/**
+ * Format a date as a human-readable day string
+ * @param date Date object
+ * @returns Day string (e.g., "Today", "Yesterday", or "Mon, Jan 15")
+ */
+export const formatDay = (date: Date): string => {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  if (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  ) {
+    return 'Today';
+  }
+  
+  if (
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear()
+  ) {
+    return 'Yesterday';
+  }
+  
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
+}; 
