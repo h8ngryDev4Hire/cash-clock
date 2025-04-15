@@ -158,27 +158,32 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
       afterDelete?: () => Promise<void>;
     }
   ): Promise<void> => {
-    await storageService.transaction(async (tx: any) => {
+    try {
       if (options?.beforeDelete) {
         await options.beforeDelete();
       }
 
       if (options?.cascade) {
         for (const { table: cascadeTable, foreignKey } of options.cascade) {
-          await tx.executeSql(
-            `DELETE FROM ${cascadeTable} WHERE ${foreignKey} = ?`,
-            [itemId]
-          );
+          storageService.delete(cascadeTable, `${foreignKey} = ?`, [itemId]);
         }
       }
 
-      await tx.executeSql(`DELETE FROM ${table} WHERE item_id = ?`, [itemId]);
+      // Use direct delete instead of transaction execution
+      storageService.delete(table, 'item_id = ?', [itemId]);
 
       if (options?.afterDelete) {
         await options.afterDelete();
       }
-    });
-    await loadAllData();
+      
+      await loadAllData();
+    } catch (error) {
+      log('Error in deleteEntity: ' + error, 'StorageContext', 'deleteEntity', 'ERROR', { 
+        variableName: 'deleteEntityParams', 
+        value: { table, itemId, error }
+      });
+      throw error;
+    }
   }, [loadAllData]);
 
   const findEntity = useCallback(async <T extends { itemId: string }>(

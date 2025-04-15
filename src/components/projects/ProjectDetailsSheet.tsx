@@ -224,15 +224,28 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
             log('Delete confirmed for project: ' + projectId, 'ProjectDetailsSheet', 'handleDeleteConfirm', 'INFO');
             
             try {
+              // Set loading state immediately
+              setIsSaving(true);
+              setLocalError(null);
+              
+              // Delete the project
               await deleteProject(projectId);
+              
               log('Project deleted successfully: ' + projectId, 'ProjectDetailsSheet', 'handleDeleteConfirm', 'INFO');
+              
+              // Close the sheet immediately
               handleClose();
-              if (onProjectDeleted) {
-                onProjectDeleted();
-              }
+              
+              // Then notify parent of deletion with a delay to ensure correct state handling
+              setTimeout(() => {
+                if (onProjectDeleted) {
+                  onProjectDeleted();
+                }
+              }, 300);
             } catch (err) {
               log('Error deleting project: ' + err, 'ProjectDetailsSheet', 'handleDeleteConfirm', 'ERROR', { variableName: 'err', value: err });
               setLocalError(err instanceof Error ? err.message : String(err));
+              setIsSaving(false);
             }
           }, 
           style: "destructive" 
@@ -527,64 +540,54 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
                       />
                     </View>
                     
-                    {/* Project milestones field */}
-                    <View className="mb-4">
+                    {/* Milestones field */}
+                    <View className="mb-3">
                       <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Project Milestones (Optional)
+                        Milestones
                       </Text>
                       
-                      {/* Milestone list */}
-                      {milestones.length > 0 && (
-                        <View className="mb-2">
-                          {milestones.map(milestone => renderMilestoneItem(milestone))}
-                        </View>
-                      )}
+                      {/* Existing milestones */}
+                      {milestones.map(milestone => renderMilestoneItem(milestone))}
                       
-                      {/* Add milestone form */}
-                      <View className="flex-row mb-2">
+                      {/* Add new milestone input */}
+                      <View className="flex-row mt-2">
                         <TextInput
-                          className={`flex-1 p-3 rounded-l-lg ${isDark ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'} border-r-0 border`}
+                          className={`flex-1 p-3 rounded-l-lg ${isDark ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-50 text-gray-900 border-gray-200'} border`}
                           placeholder="Add a milestone"
                           placeholderTextColor={isDark ? '#9CA3AF' : '#9CA3AF'}
                           value={newMilestone}
                           onChangeText={setNewMilestone}
-                          editable={!isSaving}
+                          maxLength={100}
                         />
                         <TouchableOpacity
-                          className={`px-3 rounded-r-lg items-center justify-center ${isDark ? 'bg-gray-700 border-gray-700' : 'bg-gray-200 border-gray-200'} border`}
                           onPress={handleAddMilestone}
-                          disabled={!newMilestone.trim() || isSaving}
+                          className={`justify-center items-center px-4 rounded-r-lg ${isDark ? 'bg-indigo-600' : 'bg-indigo-500'}`}
+                          disabled={!newMilestone.trim()}
                         >
-                          <Ionicons name="add" size={24} color={isDark ? '#FFFFFF' : '#374151'} />
+                          <Ionicons name="add" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                       </View>
                     </View>
                     
-                    {/* Action buttons */}
-                    <View className="flex-row gap-3">
+                    {/* Actions buttons */}
+                    <View className="flex-row justify-end mt-4">
                       <TouchableOpacity
-                        className={`flex-1 p-3 rounded-lg items-center justify-center bg-gray-300 dark:bg-gray-700`}
                         onPress={handleCancelEdit}
+                        className="px-4 py-2 mr-2 rounded-lg border border-gray-300"
                         disabled={isSaving}
                       >
-                        <Text className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                          Cancel
-                        </Text>
+                        <Text className={isDark ? 'text-white' : 'text-gray-800'}>Cancel</Text>
                       </TouchableOpacity>
                       
                       <TouchableOpacity
-                        className={`flex-1 p-3 rounded-lg items-center justify-center ${
-                          isSaving ? 'bg-blue-400' : !projectGoals.trim() ? 'bg-blue-300' : 'bg-blue-500'
-                        }`}
                         onPress={handleSave}
+                        className={`px-4 py-2 rounded-lg ${isDark ? 'bg-indigo-600' : 'bg-indigo-500'}`}
                         disabled={isSaving || !projectName.trim() || !projectGoals.trim()}
                       >
                         {isSaving ? (
-                          <ActivityIndicator color="#FFFFFF" size="small" />
+                          <ActivityIndicator size="small" color="#FFFFFF" />
                         ) : (
-                          <Text className="text-white font-medium">
-                            Save Changes
-                          </Text>
+                          <Text className="text-white">Save</Text>
                         )}
                       </TouchableOpacity>
                     </View>
@@ -599,4 +602,4 @@ const ProjectDetailsSheet: React.FC<ProjectDetailsSheetProps> = ({
   );
 };
 
-export default ProjectDetailsSheet; 
+export default ProjectDetailsSheet;

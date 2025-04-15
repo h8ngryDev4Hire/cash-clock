@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { View, Pressable, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { addDays } from 'date-fns';
 import DaySelector from '../components/calendar/DaySelector';
 import HourlyTimeline from '../components/calendar/HourlyTimeline';
+import TimeEntryInspectorSheet from '../components/calendar/TimeEntryInspectorSheet';
 import { log } from '@lib/util/debugging/logging';
+import { useCalendarEntries, CalendarTimeEntry } from '../hooks/useCalendarEntries';
 
 /**
  * CalendarScreen displays a 24-hour calendar view with time entries
@@ -12,6 +13,17 @@ import { log } from '@lib/util/debugging/logging';
 export default function CalendarScreen() {
   // State for the currently selected day
   const [selectedDate, setSelectedDate] = useState(new Date());
+  // State for loading status
+  const [isLoading, setIsLoading] = useState(true);
+  // State for time entries
+  const [timeEntries, setTimeEntries] = useState<CalendarTimeEntry[]>([]);
+  // State for the selected time entry
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  // State for bottom sheet visibility
+  const [isInspectorVisible, setIsInspectorVisible] = useState(false);
+  
+  // Use our custom hooks
+  const { formatEntriesForCalendar } = useCalendarEntries();
   
   // Generate array of days for horizontal navigation (3 days before, selected day, 3 days after)
   const daysToDisplay = Array.from({ length: 7 }, (_, i) => {
@@ -19,50 +31,54 @@ export default function CalendarScreen() {
     return addDays(selectedDate, offset);
   });
   
+  // Load entries whenever the selected date changes
+  useEffect(() => {
+    loadEntriesForDate(selectedDate);
+  }, [selectedDate]);
+  
   // Handle day selection
   const handleDayPress = (date: Date) => {
     setSelectedDate(date);
-    // Additional logic to fetch entries for the selected day would be added here
   };
   
-  // Dummy time entries for demonstration
-  const timeEntries = [
-    {
-      id: '1',
-      taskId: 'task1',
-      taskName: 'Project Planning',
-      startTime: new Date(selectedDate).setHours(9, 30),
-      endTime: new Date(selectedDate).setHours(11, 45),
-      color: '#4CAF50'
-    },
-    {
-      id: '2',
-      taskId: 'task2',
-      taskName: 'Team Meeting',
-      startTime: new Date(selectedDate).setHours(13, 0),
-      endTime: new Date(selectedDate).setHours(14, 0),
-      color: '#2196F3'
-    },
-    {
-      id: '3',
-      taskId: 'task3',
-      taskName: 'Development',
-      startTime: new Date(selectedDate).setHours(15, 15),
-      endTime: new Date(selectedDate).setHours(18, 30),
-      color: '#FF9800'
+  // Load entries for the selected date
+  const loadEntriesForDate = async (date: Date) => {
+    try {
+      setIsLoading(true);
+      const entries = await formatEntriesForCalendar(date);
+      setTimeEntries(entries);
+      log(`Loaded ${entries.length} entries for ${date.toDateString()}`, 
+          'CalendarScreen', 'loadEntriesForDate', 'INFO');
+    } catch (error) {
+      log('Error loading time entries: ' + error, 
+          'CalendarScreen', 'loadEntriesForDate', 'ERROR', 
+          { variableName: 'error', value: error });
+      setTimeEntries([]);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
   
   // Handle time entry press
   const handleEntryPress = (entryId: string) => {
     log('Time entry pressed: ' + entryId, 'CalendarScreen', 'handleEntryPress', 'INFO');
-    // Navigate to time entry detail
+    setSelectedEntryId(entryId);
+    setIsInspectorVisible(true);
   };
   
-  // Handle add new entry
-  const handleAddEntry = () => {
-    log('Add new time entry', 'CalendarScreen', 'handleAddEntry', 'INFO');
-    // Add new time entry
+  // Handle inspector close
+  const handleInspectorClose = () => {
+    setIsInspectorVisible(false);
+    // Clear the selected entry after a short delay to allow animation to complete
+    setTimeout(() => {
+      setSelectedEntryId(null);
+    }, 300);
+  };
+  
+  // Handle editing a time entry
+  const handleEditEntry = (entryId: string) => {
+    log('Edit time entry: ' + entryId, 'CalendarScreen', 'handleEditEntry', 'INFO');
+    // Edit functionality to be implemented
   };
 
   return (
@@ -74,22 +90,29 @@ export default function CalendarScreen() {
         onSelectDay={handleDayPress}
       />
       
-      {/* Hourly timeline with entries */}
-      <HourlyTimeline 
-        selectedDate={selectedDate}
-        entries={timeEntries}
-        onEntryPress={handleEntryPress}
-      />
+      {/* Loading indicator */}
+      {isLoading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text className="mt-2 text-gray-500">Loading time entries...</Text>
+        </View>
+      ) : (
+        /* Hourly timeline with entries */
+        <HourlyTimeline 
+          selectedDate={selectedDate}
+          entries={timeEntries}
+          onEntryPress={handleEntryPress}
+        />
+      )}
       
-      {/* Floating action button to add new time entry */}
-      <Pressable 
-        className="absolute bottom-6 right-6 w-14 h-14 bg-blue-500 rounded-full justify-center items-center shadow-md"
-        onPress={handleAddEntry}
-        accessibilityLabel="Add new time entry"
-        accessibilityHint="Opens form to add a new time entry"
-      >
-        <Ionicons name="add" size={30} color="white" />
-      </Pressable>
+      {/* Time entry inspector */}
+      <TimeEntryInspectorSheet
+        isVisible={isInspectorVisible}
+        onClose={handleInspectorClose}
+        entryId={selectedEntryId}
+        entries={timeEntries}
+        onEditEntry={handleEditEntry}
+      />
     </View>
   );
 }

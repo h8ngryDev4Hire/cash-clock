@@ -57,15 +57,6 @@ const ProjectList: React.FC<ProjectListProps> = ({
         <Text className={`text-center px-8 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           Create your first project to organize your tasks and track time more effectively
         </Text>
-        
-        <TouchableOpacity
-          className="mt-6 px-6 py-3 bg-blue-500 rounded-lg"
-          onPress={onAddPress}
-        >
-          <Text className="text-white font-medium">
-            Create Project
-          </Text>
-        </TouchableOpacity>
       </View>
     );
   };
@@ -75,24 +66,12 @@ const ProjectList: React.FC<ProjectListProps> = ({
     <View className="h-2" />
   );
 
-  // Render header with title and add button
+  // Render header with title
   const renderHeader = () => (
     <View className="flex-row justify-between items-center mb-4">
       <Text className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
         Your Projects
       </Text>
-      <TouchableOpacity
-        onPress={onAddPress}
-        className={`rounded-full p-2 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
-        accessibilityLabel="Add new project"
-        accessibilityHint="Creates a new project"
-      >
-        <Ionicons
-          name="add"
-          size={22}
-          color={isDark ? '#E5E7EB' : '#4B5563'}
-        />
-      </TouchableOpacity>
     </View>
   );
 

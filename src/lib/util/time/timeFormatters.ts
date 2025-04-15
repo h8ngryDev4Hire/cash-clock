@@ -2,6 +2,9 @@
  * Time formatting utilities for consistent display across the application
  */
 
+// Add date-fns imports at the top of the file
+import { format, isToday as dateFnsIsToday, isYesterday, formatDistanceToNow } from 'date-fns';
+
 /**
  * Format seconds as HH:MM:SS
  * @param seconds Number of seconds
@@ -143,11 +146,7 @@ export const formatTimeStamp = (timestamp: number | null): string => {
  */
 export const isToday = (timestamp: number): boolean => {
   const date = new Date(timestamp * 1000);
-  const today = new Date();
-  
-  return date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear();
+  return dateFnsIsToday(date);
 };
 
 /**
@@ -156,29 +155,13 @@ export const isToday = (timestamp: number): boolean => {
  * @returns Day string (e.g., "Today", "Yesterday", or "Mon, Jan 15")
  */
 export const formatDay = (date: Date): string => {
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  
-  if (
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear()
-  ) {
+  if (dateFnsIsToday(date)) {
     return 'Today';
   }
   
-  if (
-    date.getDate() === yesterday.getDate() &&
-    date.getMonth() === yesterday.getMonth() &&
-    date.getFullYear() === yesterday.getFullYear()
-  ) {
+  if (isYesterday(date)) {
     return 'Yesterday';
   }
   
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
+  return format(date, 'EEE, MMM d');
 }; 

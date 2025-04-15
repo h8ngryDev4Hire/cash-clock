@@ -72,12 +72,37 @@ export default function HomeScreen() {
       log(`Retrieved ${allTasks.length} tasks from storage`, 'HomeScreen', 'loadTasks', 'DEBUG');
       log(`Time entries in storage: ${timeEntries.length}`, 'HomeScreen', 'loadTasks', 'DEBUG');
       
-      // Process tasks using utility functions
+      // Log time entries for today to help with debugging
+      const today = new Date();
+      const todayFormatted = today.toISOString().split('T')[0];
+      log(`[DEBUG] Today's date is: ${todayFormatted}`, 'HomeScreen', 'loadTasks', 'DEBUG');
+      
+      // Map time entries to ensure taskId is properly set
+      const mappedTimeEntries = timeEntries.map(entry => {
+        // Handle potential different property names in database
+        const entryAny = entry as any;
+        return {
+          ...entry,
+          taskId: entry.taskId || entryAny.task_id // Use taskId if available, otherwise use task_id
+        };
+      });
+      
+      // Log the mapped time entries
+      mappedTimeEntries.forEach((entry, index) => {
+        const startDate = new Date(entry.timeStarted * 1000);
+        const endDate = entry.timeEnded ? new Date(entry.timeEnded * 1000) : null;
+        const startFormatted = startDate.toISOString().split('T')[0];
+        const endFormatted = endDate ? endDate.toISOString().split('T')[0] : 'running';
+        log(`[DEBUG] Time entry ${index + 1}: taskId=${entry.taskId}, started=${startFormatted}, ended=${endFormatted}, isRunning=${entry.isRunning}`,
+            'HomeScreen', 'loadTasks', 'DEBUG');
+      });
+      
+      // Process tasks using utility functions with mapped time entries
       log('Finding tasks with today\'s activity', 'HomeScreen', 'loadTasks', 'DEBUG');
-      const tasksWithTodayActivity = getTasksWithTodayTimeEntries(allTasks, timeEntries, showCompleted);
+      const tasksWithTodayActivity = getTasksWithTodayTimeEntries(allTasks, mappedTimeEntries, showCompleted);
       
       log('Finding past tasks', 'HomeScreen', 'loadTasks', 'DEBUG');
-      const tasksFromPast = getPastTasks(allTasks, timeEntries, showCompleted);
+      const tasksFromPast = getPastTasks(allTasks, mappedTimeEntries, showCompleted);
       
       log(`Found ${tasksWithTodayActivity.length} tasks with activity today`, 'HomeScreen', 'loadTasks', 'INFO');
       log(`Found ${tasksFromPast.length} past tasks`, 'HomeScreen', 'loadTasks', 'INFO');
@@ -88,6 +113,8 @@ export default function HomeScreen() {
           variableName: 'taskNames',
           value: tasksWithTodayActivity.map(t => `${t.name} (${t.id}): ${t.totalTime}s`)
         });
+      } else {
+        log('[DEBUG] No tasks found for Today\'s Activity section', 'HomeScreen', 'loadTasks', 'DEBUG');
       }
       
       setTodaysActivity(tasksWithTodayActivity);
@@ -285,15 +312,6 @@ export default function HomeScreen() {
               )}
             </ScrollView>
           )}
-          
-          {/* Floating action button to add new task */}
-          <TouchableOpacity
-            className={`absolute bottom-6 right-6 w-14 h-14 ${isDark ? 'bg-indigo-600' : 'bg-indigo-500'} rounded-full items-center justify-center shadow-lg`}
-            onPress={toggleTaskForm}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={30} color="#FFFFFF" />
-          </TouchableOpacity>
           
           {/* Task form sheet */}
           <TaskFormSheet 

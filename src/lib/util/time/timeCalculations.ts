@@ -3,6 +3,7 @@
  */
 
 import { TimeEntry } from '../../../types/core';
+import { startOfDay, endOfDay } from 'date-fns';
 
 /**
  * Calculate elapsed time between a start timestamp and now
@@ -41,18 +42,14 @@ export function millisecondsToSeconds(milliseconds: number): number {
  * Get the start of today in milliseconds
  */
 export const getStartOfToday = (): number => {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  return startOfToday.getTime();
+  return startOfDay(new Date()).getTime();
 };
 
 /**
  * Get the end of today in milliseconds
  */
 export const getEndOfToday = (): number => {
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
-  return endOfToday.getTime();
+  return endOfDay(new Date()).getTime();
 };
 
 /**

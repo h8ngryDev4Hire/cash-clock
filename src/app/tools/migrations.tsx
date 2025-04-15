@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { storageService } from '@lib/services/storage/StorageService';
 import { Stack } from 'expo-router';
+import { format } from 'date-fns';
 
 // Simple Button component as a fallback since we don't have access to the actual Button component
 const Button = ({ 
@@ -52,7 +53,7 @@ export default function MigrationTools() {
   const [isLoading, setIsLoading] = useState(false);
 
   const addLog = (message: string) => {
-    setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
+    setLogs(prev => [...prev, `[${format(new Date(), 'HH:mm:ss')}] ${message}`]);
   };
 
   const clearLogs = () => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import { getHours, getMinutes } from 'date-fns';
 
 /**
  * CurrentTimeIndicator component displays a horizontal line at the current time position
@@ -19,7 +20,7 @@ const CurrentTimeIndicator: React.FC = () => {
   // Calculate minutes since midnight to position the indicator
   function getMinutesSinceMidnight() {
     const now = new Date();
-    return now.getHours() * 60 + now.getMinutes();
+    return getHours(now) * 60 + getMinutes(now);
   }
   
   // Convert minutes to pixels (60px per hour)

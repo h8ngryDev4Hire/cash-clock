@@ -78,6 +78,11 @@ const Projects = () => {
   // Handle project deleted from the details sheet
   const handleProjectDeleted = () => {
     log('Project deleted from details sheet', 'ProjectsScreen', 'handleProjectDeleted', 'INFO');
+    
+    // Reset selected project ID
+    setSelectedProjectId(null);
+    
+    // Force immediate refresh of projects
     loadProjects();
   };
   
