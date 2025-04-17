@@ -38,26 +38,6 @@ const HourlyTimeline: React.FC<HourlyTimelineProps> = ({
   // Ref for the hour scroll view to programmatically scroll
   const scrollViewRef = useRef<ScrollView>(null);
   
-  // Group time entries by hour for tabbed display
-  const groupedEntries = useMemo(() => {
-    const groups: TimeEntryGroup = {};
-    
-    // Initialize empty arrays for each hour
-    hours.forEach(hour => {
-      groups[hour] = [];
-    });
-    
-    // Group entries by their start hour
-    entries.forEach(entry => {
-      const startHour = new Date(entry.startTime).getHours();
-      if (groups[startHour]) {
-        groups[startHour].push(entry);
-      }
-    });
-    
-    return groups;
-  }, [entries, hours]);
-  
   // Identify which entries span multiple hours (will be rendered as traditional blocks)
   const spanningEntries = useMemo(() => {
     return entries.filter(entry => {
@@ -68,6 +48,36 @@ const HourlyTimeline: React.FC<HourlyTimelineProps> = ({
         (new Date(entry.endTime).getTime() - new Date(entry.startTime).getTime()) > 45 * 60 * 1000;
     });
   }, [entries]);
+  
+  // Get IDs of spanning entries to avoid duplicates
+  const spanningEntryIds = useMemo(() => {
+    return new Set(spanningEntries.map(entry => entry.id));
+  }, [spanningEntries]);
+  
+  // Group time entries by hour for tabbed display, excluding spanning entries
+  const groupedEntries = useMemo(() => {
+    const groups: TimeEntryGroup = {};
+    
+    // Initialize empty arrays for each hour
+    hours.forEach(hour => {
+      groups[hour] = [];
+    });
+    
+    // Group entries by their start hour (only include non-spanning entries)
+    entries.forEach(entry => {
+      // Skip if this entry is already in the spanning entries list
+      if (spanningEntryIds.has(entry.id)) {
+        return;
+      }
+      
+      const startHour = new Date(entry.startTime).getHours();
+      if (groups[startHour]) {
+        groups[startHour].push(entry);
+      }
+    });
+    
+    return groups;
+  }, [entries, hours, spanningEntryIds]);
   
   // Scroll to the current hour when component mounts or date changes
   useEffect(() => {

@@ -11,6 +11,7 @@ import Animated, {
   Extrapolate
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useUI } from '@context/UIContext';
 
 interface GlobalCreateButtonProps {
   onCreateTask: () => void;
@@ -29,6 +30,9 @@ const GlobalCreateButton: React.FC<GlobalCreateButtonProps> = ({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   
+  // Get UI context to communicate menu state
+  const { setGlobalCreateMenuOpen } = useUI();
+  
   // Animation values
   const expandAnimation = useSharedValue(0);
   const rotateAnimation = useSharedValue(0);
@@ -44,6 +48,9 @@ const GlobalCreateButton: React.FC<GlobalCreateButtonProps> = ({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
+    // Update UI context to let other components know menu state
+    setGlobalCreateMenuOpen(isExpanded);
+    
     // Animate values
     expandAnimation.value = withSpring(isExpanded ? 1 : 0, {
       damping: 15,
@@ -57,7 +64,7 @@ const GlobalCreateButton: React.FC<GlobalCreateButtonProps> = ({
     backdropOpacity.value = withTiming(isExpanded ? 0.5 : 0, {
       duration: 200,
     });
-  }, [isExpanded]);
+  }, [isExpanded, setGlobalCreateMenuOpen]);
 
   // Toggle expansion state
   const toggleExpand = () => {

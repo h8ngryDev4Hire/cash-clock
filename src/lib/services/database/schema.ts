@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS projects (
   name TEXT NOT NULL,
   description TEXT,
   color TEXT,
+  icon TEXT,
   goals TEXT,
   milestones TEXT,
   created INTEGER NOT NULL,

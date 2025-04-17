@@ -1,8 +1,9 @@
 import { Slot, useRouter, usePathname } from "expo-router";
 import { useColorScheme, View, TouchableOpacity, Text } from "react-native";
-import React from "react";
+import { useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { AppProvider } from "@context/AppContext";
+import { UIProvider } from "@context/UIContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import TimerPlayer from "@components/timer/TimerPlayer";
 import "../../global.css"
@@ -10,9 +11,10 @@ import { GlobalErrorHandler } from "@components/ui/GlobalErrorHandler";
 import { log } from "@lib/util/debugging/logging";
 import GlobalCreateButton from "@components/shared/GlobalCreateButton";
 import TaskFormSheet from "@components/tasks/TaskFormSheet";
-import CreateProjectSheet from "@components/projects/CreateProjectSheet";
+import CreateProjectSheet from "@components/projects/CreateProjectSheet/CreateProjectSheet";
 import { useCreateFeatures } from "@hooks/useCreateFeatures";
 import { useTimerPlayer } from "@hooks/useTimerPlayer";
+import BottomNavBar from "@components/shared/BottomNavBar";
 
 // Simplified timer player container using the new hook
 const TimerPlayerContainer = () => {
@@ -24,6 +26,7 @@ const TimerPlayerContainer = () => {
     shouldShowTimer,
     isTimerActive,
     handleStartNewTask,
+    handleSelectExistingTask,
     handleTaskPress,
     pauseTimer,
     resumeTimer,
@@ -42,6 +45,7 @@ const TimerPlayerContainer = () => {
       onStop={stopTimer}
       onTaskPress={handleTaskPress}
       onStartNewTask={handleStartNewTask}
+      onSelectExistingTask={handleSelectExistingTask}
     />
   );
 };
@@ -53,9 +57,22 @@ const AppContent = () => {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Type for the navigation paths
-  type NavPath = "/home" | "/projects" | "/calendar" | "/analytics";
+  // Redirect from root path to home screen
+  useEffect(() => {
+    if (pathname === '/') {
+      log('Redirecting from root to home screen', 'AppContent', 'useEffect', 'INFO');
 
+      // The reason for this approach is that the user will be sitting 
+      // on a not-found page for 50ms before the redirect is triggered.
+      router.replace ('/home')
+      // Using setTimeout to ensure navigation completes properly before component mounting
+      // This helps prevent issues with data loading after programmatic navigation
+      setTimeout(() => {
+        router.replace('/home');
+      }, 50);
+    } 
+  }, [pathname, router]);
+  
   // Use the createFeatures hook to manage creation functionality
   const {
     isTaskFormVisible,
@@ -67,34 +84,6 @@ const AppContent = () => {
     handleAddTask,
     handleCreateProject
   } = useCreateFeatures();
-
-  // Navigation items with properly typed icons
-  const navItems = [
-    {
-      name: "home",
-      path: "/home" as NavPath,
-      title: "Home",
-      icon: "home-outline" as const
-    },
-    {
-      name: "projects",
-      path: "/projects" as NavPath,
-      title: "Projects",
-      icon: "folder-outline" as const
-    },
-    {
-      name: "calendar",
-      path: "/calendar" as NavPath,
-      title: "Calendar",
-      icon: "calendar-outline" as const
-    },
-    {
-      name: "analytics",
-      path: "/analytics" as NavPath,
-      title: "Analytics",
-      icon: "bar-chart-outline" as const
-    }
-  ];
 
   return (
     <View className="flex-1">
@@ -135,40 +124,8 @@ const AppContent = () => {
         />
       </View>
       
-      {/* Custom Navigation Bar */}
-      <View className={`flex-row justify-around items-center py-3 border-t ${
-        isDark ? "bg-[#1F2937] border-gray-700" : "bg-white border-gray-200"
-      }`}>
-        {navItems.map((item) => (
-          <TouchableOpacity
-            key={item.name}
-            onPress={() => {
-              log('Tab pressed: ' + item.title, 'Navigation', 'TabNavigation', 'INFO');
-              router.replace(item.path);
-            }}
-            className="items-center px-3 py-1"
-          >
-            <Ionicons
-              name={item.icon}
-              size={24}
-              color={
-                pathname === item.path
-                  ? (isDark ? "#ffffff" : "#6366F1") 
-                  : (isDark ? "#888888" : "#9CA3AF")
-              }
-            />
-            <Text
-              className={`text-xs mt-1 ${
-                pathname === item.path
-                  ? (isDark ? "text-white" : "text-indigo-500")
-                  : (isDark ? "text-gray-400" : "text-gray-500")
-              }`}
-            >
-              {item.title}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Bottom Navigation Bar */}
+      <BottomNavBar />
       
       {/* Bottom Buffer */}
       <View className={`h-[1rem] bg-[#1F2937]`}/>
@@ -176,11 +133,13 @@ const AppContent = () => {
   );
 };
 
-export default function RootLayout() {
+export default function Layout() {
   return (
-    <GestureHandlerRootView className="flex-1">
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <AppProvider>
-        <AppContent />
+        <UIProvider>
+          <AppContent />
+        </UIProvider>
       </AppProvider>
     </GestureHandlerRootView>
   );

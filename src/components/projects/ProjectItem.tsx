@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ProjectWithStats } from '@lib/util/project/projectTransformers';
 import { getColorValue } from '@lib/util/project/projectColors';
+import { getIconValue, suggestIconFromName } from '@lib/util/project/projectIcons';
 
 interface ProjectItemProps {
   project: ProjectWithStats;
@@ -40,19 +41,16 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
   // Get project color from the color ID
   const projectColor = getColorValue(project.color);
   
-  // Choose appropriate icon based on project name if not specified
-  const getProjectIcon = (): string => {
-    const name = project.name.toLowerCase();
-    if (name.includes('web') || name.includes('site')) return 'globe-outline';
-    if (name.includes('app') || name.includes('mobile')) return 'phone-portrait-outline';
-    if (name.includes('meeting') || name.includes('client')) return 'people-outline';
-    if (name.includes('marketing') || name.includes('ads')) return 'megaphone-outline';
-    if (name.includes('design') || name.includes('ui')) return 'color-palette-outline';
-    if (name.includes('code') || name.includes('dev')) return 'code-slash-outline';
-    return 'folder-outline';
+  // Get the project icon (either from stored value or based on name)
+  const getProjectIconValue = (): string => {
+    if (project.icon) {
+      return getIconValue(project.icon);
+    }
+    // If no icon set but we have a name, suggest one
+    return getIconValue(suggestIconFromName(project.name));
   };
   
-  const projectIcon = getProjectIcon();
+  const projectIconValue = getProjectIconValue();
   
   return (
     <TouchableOpacity
@@ -90,7 +88,7 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
           style={{ backgroundColor: `${projectColor}20` }}
         >
           <Ionicons 
-            name={projectIcon as any} 
+            name={projectIconValue as any} 
             size={22} 
             color={projectColor} 
           />

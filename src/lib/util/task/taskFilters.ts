@@ -19,9 +19,24 @@ export const isToday = (timestamp: number): boolean => {
  * Calculate time spent on a task today
  */
 export const calculateTimeSpentToday = (taskId: string, allTimeEntries: TimeEntrySchema[]): number => {
-  const taskEntries = allTimeEntries.filter(entry => entry.taskId === taskId);
+  const taskEntries = allTimeEntries.filter(entry => {
+    // Make sure we handle both normalized taskId and raw DB task_id format
+    const entryTaskId = entry.taskId || (entry as any).task_id;
+    return entryTaskId === taskId;
+  });
   
-  return taskEntries.reduce((total, entry) => {
+  log(`Calculating time spent today for task ${taskId}. Found ${taskEntries.length} entries`, 
+      'taskFilters', 'calculateTimeSpentToday', 'DEBUG');
+  
+  // Debug logging all entries
+  taskEntries.forEach((entry, index) => {
+    const startTime = new Date(entry.timeStarted * 1000);
+    const endTime = entry.timeEnded ? new Date(entry.timeEnded * 1000) : 'running';
+    log(`Entry ${index + 1}: Started: ${startTime}, Ended: ${endTime}, Running: ${entry.isRunning}`,
+        'taskFilters', 'calculateTimeSpentToday', 'DEBUG');
+  });
+
+  const totalSeconds = taskEntries.reduce((total, entry) => {
     // Determine if entry has any activity today
     const startedToday = isToday(entry.timeStarted);
     const endedToday = entry.timeEnded ? isToday(entry.timeEnded) : false;
@@ -48,37 +63,60 @@ export const calculateTimeSpentToday = (taskId: string, allTimeEntries: TimeEntr
       // If started today, use start time, otherwise use start of day
       const effectiveStartTime = startedToday ? entry.timeStarted : startOfTodayTimestamp;
       timeToAdd = now - effectiveStartTime;
+      
+      log(`Running entry calculation: started=${new Date(entry.timeStarted * 1000).toISOString()}, ` +
+          `effectiveStart=${new Date(effectiveStartTime * 1000).toISOString()}, ` +
+          `now=${new Date(now * 1000).toISOString()}, ` +
+          `timeToAdd=${timeToAdd} seconds`,
+          'taskFilters', 'calculateTimeSpentToday', 'DEBUG');
     } 
     // For completed entries
     else if (entry.timeEnded) {
       // Entry started and ended today - use the full duration
       if (startedToday && endedToday) {
         timeToAdd = entry.timeEnded - entry.timeStarted;
+        log(`Entry started and ended today: timeToAdd=${timeToAdd}`, 
+            'taskFilters', 'calculateTimeSpentToday', 'DEBUG');
       }
       // Entry started before today and ended today
       else if (!startedToday && endedToday) {
         timeToAdd = entry.timeEnded - startOfTodayTimestamp;
+        log(`Entry started before today and ended today: timeToAdd=${timeToAdd}`, 
+            'taskFilters', 'calculateTimeSpentToday', 'DEBUG');
       }
       // Entry started today and ended after today (edge case but handle it)
       else if (startedToday && !endedToday) {
         timeToAdd = endOfTodayTimestamp - entry.timeStarted;
+        log(`Entry started today and ended after today: timeToAdd=${timeToAdd}`, 
+            'taskFilters', 'calculateTimeSpentToday', 'DEBUG');
       }
       // Entry spans across today (started before today and ended after today)
       else if (!startedToday && !endedToday && entry.timeStarted < startOfTodayTimestamp && entry.timeEnded > endOfTodayTimestamp) {
         timeToAdd = endOfTodayTimestamp - startOfTodayTimestamp; // Full day
+        log(`Entry spans across today: timeToAdd=${timeToAdd}`, 
+            'taskFilters', 'calculateTimeSpentToday', 'DEBUG');
       }
     }
     
     // Ensure we don't add negative time
     return total + Math.max(0, timeToAdd);
   }, 0);
+  
+  log(`Total time for task ${taskId} today: ${totalSeconds} seconds`, 
+      'taskFilters', 'calculateTimeSpentToday', 'INFO');
+  
+  return totalSeconds;
 };
 
 /**
  * Get the last activity timestamp for a task
  */
 export const getLastActivityTime = (taskId: string, allTimeEntries: TimeEntrySchema[]): number => {
-  const taskEntries = allTimeEntries.filter(entry => entry.taskId === taskId);
+  const taskEntries = allTimeEntries.filter(entry => {
+    // Make sure we handle both normalized taskId and raw DB task_id format
+    const entryTaskId = entry.taskId || (entry as any).task_id;
+    return entryTaskId === taskId;
+  });
   
   if (taskEntries.length === 0) {
     return 0;
@@ -239,7 +277,11 @@ export const getPastTasks = (
 export const hasTimeEntryToday = (taskId: string, allTimeEntries: TimeEntrySchema[]): boolean => {
   log(`Checking if task ${taskId} has time entries today`, 'taskFilters', 'hasTimeEntryToday', 'DEBUG');
   
-  const taskEntries = allTimeEntries.filter(entry => entry.taskId === taskId);
+  const taskEntries = allTimeEntries.filter(entry => {
+    // Make sure we handle both normalized taskId and raw DB task_id format
+    const entryTaskId = entry.taskId || (entry as any).task_id;
+    return entryTaskId === taskId;
+  });
   
   log(`[DEBUG] Task ${taskId} has ${taskEntries.length} time entries total`, 'taskFilters', 'hasTimeEntryToday', 'DEBUG');
   
@@ -328,12 +370,13 @@ export const getTasksWithTodayTimeEntries = (
       const timeSpentToday = calculateTimeSpentToday(task.id, timeEntries);
       const lastActivityTime = getLastActivityTime(task.id, timeEntries);
       
-      log(`Task ${task.id} (${task.name}): time spent today: ${timeSpentToday} seconds`, 
+      log(`Task ${task.id} (${task.name}): time spent today: ${timeSpentToday} seconds, original totalTime: ${task.totalTime}`, 
           'taskFilters', 'getTasksWithTodayTimeEntries', 'DEBUG');
       
+      // Make sure we're not losing time data if there's already a totalTime value
       return {
         ...task,
-        totalTime: timeSpentToday, // Override with today's time
+        totalTime: timeSpentToday > 0 ? timeSpentToday : task.totalTime, // Use today's time if available, otherwise keep original
         lastActivityTime // Add for sorting
       };
     });
@@ -342,6 +385,12 @@ export const getTasksWithTodayTimeEntries = (
   const sortedTasks = tasksWithTodayEntries.sort((a, b) => 
     (b.lastActivityTime || 0) - (a.lastActivityTime || 0)
   );
+  
+  // Log the final results for debugging
+  sortedTasks.forEach(task => {
+    log(`Task in Today's Activity: ${task.id} (${task.name}) - totalTime: ${task.totalTime} seconds`,
+        'taskFilters', 'getTasksWithTodayTimeEntries', 'DEBUG');
+  });
   
   log(`Found ${sortedTasks.length} tasks with today's time entries: ${sortedTasks.map(t => t.name).join(', ')}`, 
       'taskFilters', 'getTasksWithTodayTimeEntries', 'INFO');

@@ -110,6 +110,11 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   }, []);
 
+  // Helper function to convert camelCase to snake_case
+  const camelToSnakeCase = (str: string): string => {
+    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+  };
+
   // Generic entity operations
   const createEntity = useCallback(async <T extends { itemId: string }>(
     table: string,
@@ -119,12 +124,18 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     const now = Date.now();
     const itemId = `${table.slice(0, -1)}_${now}_${Math.floor(Math.random() * 1000)}`;
     
-    const dbData = {
+    // Convert all camelCase keys to snake_case for database compatibility
+    const dbData: Record<string, any> = {
       item_id: itemId,
-      ...data,
       created: now,
       last_updated: now
     };
+    
+    // Convert each key from camelCase to snake_case
+    Object.entries(data).forEach(([key, value]) => {
+      const snakeCaseKey = camelToSnakeCase(key);
+      dbData[snakeCaseKey] = value;
+    });
 
     await storageService.insert(table, dbData);
     await loadAllData();
@@ -140,10 +151,16 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     transform?: (dbData: any) => T
   ): Promise<void> => {
     const now = Date.now();
+    // Convert all camelCase keys to snake_case for database compatibility
     const dbUpdates: Record<string, any> = {
-      last_updated: now,
-      ...updates
+      last_updated: now
     };
+    
+    // Convert each key from camelCase to snake_case
+    Object.entries(updates).forEach(([key, value]) => {
+      const snakeCaseKey = camelToSnakeCase(key);
+      dbUpdates[snakeCaseKey] = value;
+    });
 
     await storageService.update(table, dbUpdates, 'item_id = ?', [itemId]);
     await loadAllData();

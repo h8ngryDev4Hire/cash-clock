@@ -37,6 +37,18 @@ export const useProject = () => {
   }, [projectsWithStats]);
 
   /**
+   * Move multiple tasks to a different project
+   */
+  const moveTasksBetweenProjects = useCallback(async (taskIds: string[], newProjectId: string | null) => {
+    for (const taskId of taskIds) {
+      await storage.updateEntity<TaskSchema>('tasks', taskId, { 
+        projectId: newProjectId,
+        isGrouped: !!newProjectId 
+      });
+    }
+  }, [storage]);
+
+  /**
    * Create a new project
    */
   const createProject = useCallback(async (
@@ -44,8 +56,10 @@ export const useProject = () => {
       name: string;
       description?: string;
       color?: string;
+      icon?: string;
       goals?: string;
       milestones?: string;
+      taskIds?: string[];
     }
   ) => {
     // Set default color if not provided
@@ -55,6 +69,7 @@ export const useProject = () => {
       name: data.name,
       description: data.description || '',
       color: projectColor,
+      icon: data.icon || '',
       goals: data.goals || '',
       milestones: data.milestones || '',
     };
@@ -66,8 +81,16 @@ export const useProject = () => {
       lastUpdated: dbData.last_updated
     });
 
-    return storage.createEntity<ProjectSchema>('projects', dbData, transform);
-  }, [storage]);
+    // Create the project
+    const newProject = await storage.createEntity<ProjectSchema>('projects', dbData, transform);
+    
+    // If task IDs were provided, associate them with the new project
+    if (data.taskIds && data.taskIds.length > 0) {
+      await moveTasksBetweenProjects(data.taskIds, newProject.itemId);
+    }
+    
+    return newProject;
+  }, [storage, moveTasksBetweenProjects]);
 
   /**
    * Update a project
@@ -78,6 +101,7 @@ export const useProject = () => {
       name?: string;
       description?: string;
       color?: string;
+      icon?: string;
       goals?: string;
       milestones?: string;
     }
@@ -87,6 +111,7 @@ export const useProject = () => {
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.color !== undefined) dbUpdates.color = updates.color;
+    if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
     if (updates.goals !== undefined) dbUpdates.goals = updates.goals;
     if (updates.milestones !== undefined) dbUpdates.milestones = updates.milestones;
 
@@ -149,15 +174,6 @@ export const useProject = () => {
    */
   const removeTaskFromProject = useCallback(async (taskId: string) => {
     await storage.updateEntity<TaskSchema>('tasks', taskId, { projectId: null });
-  }, [storage]);
-
-  /**
-   * Move multiple tasks to a different project
-   */
-  const moveTasksBetweenProjects = useCallback(async (taskIds: string[], newProjectId: string | null) => {
-    for (const taskId of taskIds) {
-      await storage.updateEntity<TaskSchema>('tasks', taskId, { projectId: newProjectId });
-    }
   }, [storage]);
 
   return {

@@ -56,41 +56,59 @@ export function useTimerPlayer() {
   // Convert milliseconds to seconds for the TimerPlayer component
   const elapsedTimeInSeconds = millisecondsToSeconds(elapsedTime);
   
-  // Handle starting a new task
-  const handleStartNewTask = async (name: string) => {
-    if (name.trim()) {
-      try {
-        setIsLoading(true);
-        clearError();
-        
-        // Create a new task and start the timer for it
-        const newTask = await createTask(name.trim());
-        startTimer(newTask.id);
-        
-        setIsLoading(false);
-      } catch (err) {
-        // Use global error handling for quick task creation
-        handleError(err, ErrorLevel.ERROR, { 
-          operation: 'createQuickTask', 
-          input: { name } 
-        }, true);
+  /**
+   * Handle starting a new task from the timer player
+   */
+  const handleStartNewTask = async (newTaskName: string) => {
+    try {
+      log(`Starting new task: ${newTaskName}`, 'useTimerPlayer', 'handleStartNewTask', 'INFO');
+      setIsLoading(true);
+      clearError();
+      
+      // Create a new task and start the timer
+      const task = await createTask(newTaskName);
+      if (task) {
+        setTaskName(task.name);
+        startTimer(task.id);
       }
-    } else {
-      handleError(
-        new Error('Task name cannot be empty'),
-        ErrorLevel.WARNING,
-        { operation: 'validateQuickTaskName' },
-        true // Set as global error
-      );
+      setIsLoading(false);
+    } catch (err) {
+      handleError(err, ErrorLevel.ERROR, { operation: 'handleStartNewTask' }, true);
     }
   };
   
-  // Handle task press to navigate to task details
-  const handleTaskPress = () => {
-    if (taskId) {
-      // Navigate to the task details screen
-      router.push(`/task/${taskId}`);
+  /**
+   * Handle selecting an existing task from search
+   */
+  const handleSelectExistingTask = async (selectedTaskId: string) => {
+    try {
+      log(`Selecting existing task: ${selectedTaskId}`, 'useTimerPlayer', 'handleSelectExistingTask', 'INFO');
+      setIsLoading(true);
+      clearError();
+      
+      // Fetch task data to update the name
+      const taskData = await getTaskWithTime(selectedTaskId);
+      if (taskData) {
+        setTaskName(taskData.name);
+        startTimer(taskData.id);
+      } else {
+        throw new Error(`Task with ID ${selectedTaskId} not found`);
+      }
+      
+      setIsLoading(false);
+    } catch (err) {
+      handleError(err, ErrorLevel.ERROR, { operation: 'handleSelectExistingTask', entityId: selectedTaskId }, true);
     }
+  };
+  
+  /**
+   * Handle navigating to the task details page
+   */
+  const handleTaskPress = () => {
+    if (!taskId) return;
+    
+    log(`Navigating to task details for task ID: ${taskId}`, 'useTimerPlayer', 'handleTaskPress', 'INFO');
+    router.push(`/task/${taskId}`);
   };
   
   return {
@@ -106,6 +124,7 @@ export function useTimerPlayer() {
     
     // Actions
     handleStartNewTask,
+    handleSelectExistingTask,
     handleTaskPress,
     pauseTimer,
     resumeTimer,

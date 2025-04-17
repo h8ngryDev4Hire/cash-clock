@@ -60,10 +60,29 @@ export interface Project {
   name: string;
   description?: string;
   color?: string;
+  icon?: string;
   goals?: string;
   milestones?: string;
   createdAt: number;
   updatedAt: number;
+}
+
+/**
+ * Milestone represents a project milestone
+ */
+export interface Milestone {
+  id: string;
+  text: string;
+}
+
+/**
+ * TaskItem represents a simplified task for UI selection
+ */
+export interface TaskItem {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+  projectId?: string | null;
 }
 
 /**
