@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ColorSelector from '../components/ColorSelector';
 import IconSelector from '../components/IconSelector';
 import MilestoneItem from '../components/MilestoneItem';
+import TaskManager, { TaskManagerRef } from '../components/TaskManager';
 
 // Define milestone interface
 interface Milestone {
@@ -11,12 +12,21 @@ interface Milestone {
   text: string;
 }
 
+// Define task interface
+interface ProjectTask {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+}
+
 interface EditModeProps {
+  projectId: string;
   projectName: string;
   projectDescription: string;
   projectGoals: string;
   projectColor: string;
   projectIcon: string;
+  projectTasks: ProjectTask[];
   milestones: Milestone[];
   newMilestone: string;
   isSaving: boolean;
@@ -30,6 +40,9 @@ interface EditModeProps {
   onRemoveMilestone: (id: string) => void;
   onSave: () => void;
   onCancel: () => void;
+  onTasksUpdated: () => void;
+  onPendingTaskChanges: (hasPendingChanges: boolean) => void;
+  taskManagerRef: React.RefObject<TaskManagerRef>;
   isDark: boolean;
 }
 
@@ -37,11 +50,13 @@ interface EditModeProps {
  * Edit mode tab for Project Details
  */
 const EditMode: React.FC<EditModeProps> = ({
+  projectId,
   projectName,
   projectDescription,
   projectGoals,
   projectColor,
   projectIcon,
+  projectTasks,
   milestones,
   newMilestone,
   isSaving,
@@ -55,6 +70,9 @@ const EditMode: React.FC<EditModeProps> = ({
   onRemoveMilestone,
   onSave,
   onCancel,
+  onTasksUpdated,
+  onPendingTaskChanges,
+  taskManagerRef,
   isDark
 }) => {
   return (
@@ -132,6 +150,16 @@ const EditMode: React.FC<EditModeProps> = ({
           textAlignVertical="top"
         />
       </View>
+      
+      {/* Project tasks management */}
+      <TaskManager
+        ref={taskManagerRef}
+        projectId={projectId}
+        projectTasks={projectTasks}
+        isDark={isDark}
+        onTasksUpdated={onTasksUpdated}
+        onPendingTaskChanges={onPendingTaskChanges}
+      />
       
       {/* Milestones field */}
       <View className="mb-3">

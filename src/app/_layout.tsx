@@ -4,10 +4,12 @@ import { useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { AppProvider } from "@context/AppContext";
 import { UIProvider } from "@context/UIContext";
+import { DragProvider } from "@context/DragContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import TimerPlayer from "@components/timer/TimerPlayer";
 import "../../global.css"
 import { GlobalErrorHandler } from "@components/ui/GlobalErrorHandler";
+import DragOverlay from "@components/ui/DragOverlay";
 import { log } from "@lib/util/debugging/logging";
 import GlobalCreateButton from "@components/shared/GlobalCreateButton";
 import TaskFormSheet from "@components/tasks/TaskFormSheet";
@@ -138,7 +140,10 @@ export default function Layout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppProvider>
         <UIProvider>
-          <AppContent />
+          <DragProvider>
+            <AppContent />
+            <DragOverlay showDebugInfo={__DEV__} />
+          </DragProvider>
         </UIProvider>
       </AppProvider>
     </GestureHandlerRootView>

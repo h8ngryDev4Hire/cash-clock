@@ -1,10 +1,13 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getColorValue } from '@lib/util/project/projectColors';
 import { formatDuration } from '@lib/util/time/timeFormatters';
 import TaskItem from '../components/TaskItem';
 import MilestoneItem from '../components/MilestoneItem';
+import { GestureHandlerRootView, TouchableOpacity } from 'react-native-gesture-handler';
+import { useDragContext } from '@context/DragContext';
+import { log } from '@lib/util/debugging/logging';
 
 // Define milestone interface
 interface Milestone {
@@ -57,6 +60,67 @@ const ViewMode: React.FC<ViewModeProps> = ({
   onEditPress,
   isDark
 }) => {
+  // State for task reordering
+  const [orderedTasks, setOrderedTasks] = useState<ProjectTask[]>(projectTasks);
+  const [dragEnabled, setDragEnabled] = useState(false);
+  
+  // Get the drag context to know when any task is being dragged
+  const { isDragging: isAnyTaskDragging } = useDragContext();
+  
+  // Update ordered tasks when projectTasks changes from props
+  React.useEffect(() => {
+    setOrderedTasks(projectTasks);
+  }, [projectTasks]);
+  
+  // Toggle drag mode
+  const toggleDragMode = useCallback(() => {
+    setDragEnabled(!dragEnabled);
+    log(`Drag mode ${!dragEnabled ? 'enabled' : 'disabled'}`, 'ViewMode', 'toggleDragMode', 'INFO');
+  }, [dragEnabled]);
+  
+  // Handle drag start
+  const handleDragStart = useCallback((taskId: string) => {
+    log(`Task drag started: ${taskId}`, 'ViewMode', 'handleDragStart', 'INFO');
+  }, []);
+  
+  // Handle drag end and reordering
+  const handleDragEnd = useCallback((taskId: string, distance: number) => {
+    log(`Task drag ended: ${taskId}, distance: ${distance}`, 'ViewMode', 'handleDragEnd', 'INFO');
+    
+    // If the distance moved is too small, don't reorder
+    if (Math.abs(distance) < 20) {
+      return;
+    }
+    
+    // Find the task's current index
+    const currentIndex = orderedTasks.findIndex(task => task.id === taskId);
+    if (currentIndex < 0) return;
+    
+    // Calculate new index based on distance and direction
+    const direction = Math.sign(distance);
+    // Approximate pixels per item height
+    const pixelsPerItem = 56; // Adjusted for typical task item height
+    const positionsToMove = Math.round(Math.abs(distance) / pixelsPerItem);
+    
+    if (positionsToMove === 0) return;
+    
+    // Determine new index with bounds check
+    let newIndex = currentIndex + (direction * positionsToMove);
+    newIndex = Math.max(0, Math.min(orderedTasks.length - 1, newIndex));
+    
+    if (newIndex === currentIndex) return;
+    
+    // Create new array with reordered tasks
+    const newOrderedTasks = [...orderedTasks];
+    const [movedTask] = newOrderedTasks.splice(currentIndex, 1);
+    newOrderedTasks.splice(newIndex, 0, movedTask);
+    
+    setOrderedTasks(newOrderedTasks);
+    
+    // Here you could save the new order to your backend/database
+    // saveTaskOrder(newOrderedTasks);
+  }, [orderedTasks]);
+  
   return (
     <View className="mb-4">
       <View className="flex-row items-center gap-3 mb-3">
@@ -104,10 +168,24 @@ const ViewMode: React.FC<ViewModeProps> = ({
       ) : null}
       
       {/* Project Tasks */}
+      <GestureHandlerRootView>
       <View className="mb-4">
-        <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          Tasks
-        </Text>
+        <View className="flex-row items-center justify-between mb-1">
+          <Text className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Tasks
+          </Text>
+          {orderedTasks.length > 1 && (
+            <TouchableOpacity 
+              onPress={toggleDragMode} 
+              className={`px-2 py-1 rounded-md ${dragEnabled ? (isDark ? 'bg-indigo-600' : 'bg-indigo-500') : 'bg-transparent'}`}
+              disabled={isAnyTaskDragging}
+            >
+              <Text className={`text-xs ${dragEnabled ? 'text-white' : (isDark ? 'text-gray-300' : 'text-gray-600')}`}>
+                {dragEnabled ? 'Done' : 'Reorder'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
         
         {isLoadingTasks ? (
           <View className="py-3 items-center">
@@ -116,7 +194,7 @@ const ViewMode: React.FC<ViewModeProps> = ({
               Loading tasks...
             </Text>
           </View>
-        ) : projectTasks.length === 0 ? (
+        ) : orderedTasks.length === 0 ? (
           <View className={`p-3 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-100'} items-center justify-center`}>
             <Text className={`text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               No tasks assigned to this project yet.
@@ -124,15 +202,20 @@ const ViewMode: React.FC<ViewModeProps> = ({
           </View>
         ) : (
           <View>
-            {projectTasks.map(task => (
-              <TaskItem
-                key={task.id}
-                id={task.id}
-                title={task.title}
-                isCompleted={task.isCompleted}
-                isDark={isDark}
-              />
-            ))}
+            <GestureHandlerRootView>
+              {orderedTasks.map(task => (
+                <TaskItem
+                  key={task.id}
+                  id={task.id}
+                  title={task.title}
+                  isCompleted={task.isCompleted}
+                  isDark={isDark}
+                  dragEnabled={dragEnabled}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                />
+              ))}
+            </GestureHandlerRootView>
           </View>
         )}
       </View>
@@ -176,6 +259,7 @@ const ViewMode: React.FC<ViewModeProps> = ({
           </View>
         )}
       </View>
+      </GestureHandlerRootView>
     </View>
   );
 };
